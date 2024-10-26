@@ -26,14 +26,35 @@ logic        cache_ready;
 
 
 /*   // Cache instantiation
-Cache cache_inst (
-    .clk(clk),                        // Clock signal
-    .reset(reset),                    // Active-low reset signal
-    .address(cache_request_address),  // Input address (64 bits) from the fetcher
-    .request(cache_request_ready),    // Request signal to initiate cache access
-    .instruction(instruction_out),    // Output instruction bits (64 bits) fetched
-    .result_ready(cache_result_ready) // Ready signal indicating if cache has the result ready
-); */
+module cache (
+    input logic clock,                           // Clock signal
+    input logic reset,                           // Reset signal
+    
+    input logic [addr_width-1:0] address,        // Address for read/write
+    input logic [data_width-1:0] write_data,     // Data to write to cache
+    input logic read_enable,                     // Signal to enable read
+    input logic write_enable,                    // Signal to enable write
+    input logic [7:0] byte_enable,               // Byte enable (optional)
+    
+    output logic [data_width-1:0] read_data,     // Data read from cache
+    output logic data_valid,                     // Signals that read_data is ready
+    output logic write_complete                  // Signals write completion
+);
+ */
+
+
+    cache instruction_cache (
+        .clock(clk),
+        .reset(reset),
+        .address(cache_request_address), // input that fetcher sends
+        .write_data(null),
+        .read_enable(cache_request_ready), //input that fetcher send
+        .write_enable(null),
+        .byte_enable(null),
+        .read_data(null),
+        .data_valid(cache_result_ready), //output that fetcher gets
+        .write_complete(null)
+    );  
 
 
 
