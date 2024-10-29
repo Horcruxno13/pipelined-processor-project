@@ -63,203 +63,242 @@ module top
   input   wire [3:0]             m_axi_acsnoop
 );
 
-  logic [63:0] pc;
 
-  
-  
+// Initial PC
+logic [63:0] initial_pc;
+logic [63:0] target_address;
+logic initial_selector;
 
-   // Instantiate InstructionFetcher with FD_ prefixed signal names
-   
-   logic F_fetch_enable;
-   logic F_fetch_ack;
-   logic F_program_counter;
-   logic F_target_address;
-   logic F_select_target;
-   logic F_instruction_out;
-   logic F_address_out;
-   logic F_fetcher_done;
+// Assign initial PC value from entry point
+assign [63:0] initial_pc = entry;
+assign target_address = 0;
+assign mux_selector = 0;
 
-   
-   logic T_instruction_out_next;
-   logic T_address_out_next;
-   logic T_instruction_out;
-   logic T_address_out;
+  // Ready/valid handshakes for Fetch, Decode, and Execute stages
+  logic fetcher_done, fetch_ready;
 
+   //InstructionFetcher's pipeline register vars
+   logic if_id_valid_reg, if_id_valid_reg_next;
+   logic [31:0] if_id_instruction_reg, if_id_instruction_reg_next;
+   logic [63:0] if_id_pc_plus_i_reg, if_id_pc_plus_i_reg_next;
+
+    //InstructionFetcher instantiation
     InstructionFetcher instructionFetcher (
         .clk(clk),
         .reset(reset),
-        .fetch_enable(F_fetch_enable),
-        .fetch_ack(F_fetch_ack),
-        .pc_current(F_program_counter),
-        .target_address(F_target_address),
-        .select_target(F_select_target),
-        .instruction_out(F_instruction_out),
-        .address_out(F_address_out),
-        .fetcher_done(F_fetcher_done),
+        .pc_current(initial_pc),
+        .target_address(target_address),
+        .select_target(mux_selector),
+        .instruction_out(if_id_instruction_reg_next),
+        .address_out(if_id_pc_plus_i_reg_next),
+        .fetcher_done(fetcher_done),
     );
 
+  // Fetcher ready logic
+  assign fetch_ready = ~if_id_valid_reg;
 
+    // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            if_id_instruction_reg <= 32'b0;
+            if_id_pc_plus_i_reg <= 64'b0;
+            if_id_valid_reg <= 1'b0;
+        end else begin
+            if (fetcher_done && fetch_ready) begin
+                // Load fetched instruction into IF/ID pipeline registers
+                if_id_instruction_reg <= if_id_instruction_reg_next;
+                if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
+                if_id_valid_reg <= 1'b1; // Data in IF/ID is valid
+            end
+            /* // When decode stage reads the data
+            if (decode_ready) begin
+                if_id_valid_reg <= 1'b0; // Clear valid once read by decode
+            end */
+        end
+    end
 
-    /*
-    
-    input if_data_ready
-    input if_pc,
-    input if_instruction,
-    
-    output logic if_id_push_done,
+    // DECODER STARTS
+    logic decode_done, decode_ready;
 
-    */
+    //InstructionDecoder's pipeline register vars
+    logic id_ex_valid_reg, id_ex_valid_reg_next;
+    logic [63:0] id_ex_reg_a_reg, id_ex_reg_a_reg_next;
+    logic [63:0] id_ex_reg_b_reg, id_ex_reg_b_reg_next;
+    logic [63:0] id_ex_pc_plus_I_reg, id_ex_pc_plus_I_reg_next;
+    logic [63:0] id_ex_control_signals_reg, id_ex_control_signals_reg_next;
 
-     pipeline_register pipeline_register (
+    InstructionDecoder instructionDecoder (
         .clk(clk),
-        .reset(reset),
-        .if_data_ready(F_fetch_enable),
-        .if
-        .if_pc(F_fetch_ack),
-        .if_instruction(F_program_counter),
-        .if_id_push_done(F_program_counter),
+        .instruction(if_id_instruction_reg),
+        .pc_current(if_id_pc_plus_i_reg),
+        .decode_enable(if_id_valid_reg)
+        .reg_a_out(id_ex_reg_a_reg_next),      // Example output: reg_a
+        .reg_b_out(id_ex_reg_b_reg_next),      // Example output: reg_b
+        .pc_plus_I_out(id_ex_pc_plus_I_reg_next), // Example output: PC + 1
+        .control_signals(id_ex_control_signals_reg_next), // Example output: control signals
+        .decode_complete(decode_done)
     );
 
+    // Decoder ready logic
+    // assign decode_ready = ~id_ex_valid_reg || execute_ready;
+    assign decode_ready = ~id_ex_valid_reg;
+
+    // ID/EX Pipeline Register Logic (between Decode and Execute stages)
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            id_ex_pc_plus_1_reg <= 64'b0;
+            id_ex_reg_a_reg <= 64'b0;
+            id_ex_reg_b_reg <= 64'b0;
+            id_ex_control_signals_reg <= 64'b0;
+            id_ex_imm_reg <= 64'b0;
+            id_ex_valid_reg <= 1'b0;
+        end else begin
+            if (decode_done && decode_ready) begin
+                // Load decoded instruction into ID/EX pipeline registers
+                id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
+                id_ex_reg_a_reg <= id_ex_reg_a_reg_next;
+                id_ex_reg_b_reg <= id_ex_reg_b_reg_next;
+                id_ex_control_signals_reg <= id_ex_control_signals_reg_next;
+                id_ex_imm_reg <= id_ex_imm_reg_next;
+                id_ex_valid_reg <= 1'b1; // Data in ID/EX is valid
+            end
+            // When execute stage reads the data
+/*             if (execute_ready) begin
+                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
+            end */
+        end
+    end
+
+    // EXECUTOR STARTS
+    logic execute_done, execute_ready;
+
+    //InstructionExecutor's pipeline register vars
+    logic ex_mem_valid_reg, ex_mem_valid_reg_next;
+    logic [63:0] ex_mem_pc_plus_I_offset_reg, ex_mem_pc_plus_I_offset_reg_next;
+    logic [63:0] ex_mem_alu_data, ex_mem_reg_alu_data_next;
+    logic [63:0] ex_mem_reg_b_data, ex_mem_reg_b_data_next;
+    logic [63:0] ex_mem_control_signals_reg, ex_mem_control_signals_reg_next;
+
+    InstructionExecutor instructionExecutor (
+        clk(clk),
+        reset(reset),
+        pc_current(id_ex_pc_plus_1_reg),
+        reg_a_contents(id_ex_reg_a_reg), 
+        reg_b_contents(id_ex_reg_b_reg), 
+        control_signals(id_ex_control_signals_reg),
+        control_signals_out(ex_mem_control_signals_reg_next), 
+        reg_b_data_out(ex_mem_reg_b_data_next),
+        alu_data_out(ex_mem_reg_alu_data_next),
+        pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
+        execute_done(execute_done) 
+    );
+    
+    // Execute logic ready
+    assign execute_ready = ~id_ex_imm_reg;
+
+    // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            ex_mem_pc_plus_I_offset_reg <= 64'b0;
+            ex_mem_alu_data <= 64'b0;
+            ex_mem_reg_b_data <= 64'b0;
+            ex_mem_control_signals_reg <= 64'b0;
+        end else begin
+            if (execute_done && execute_ready) begin
+                // Load decoded instruction into EX/MEM pipeline registers
+                ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
+                ex_mem_alu_data <= ex_mem_alu_data_next;
+                ex_mem_reg_b_data <= ex_mem_reg_b_data_next;
+                ex_mem_control_signals_reg <= ex_mem_control_signals_reg_next;
+            end
+            // When execute stage reads the data
+/*             if (execute_ready) begin
+                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
+            end */
+        end
+    end
 
 
-    /*todo - write the FSM here @angad*/
-     //STATE DEFINITION SIGNALS
-   enum {
-    MAIN_IDLE_STATE = 3'b000,
-    MAIN_FETCH_STATE = 3'b001,
-    MAIN_IF_ID_STATE = 3'b001,
-    MAIN_DECODE_STATE = 3'b010,
-    MAIN_EXECUTE_STATE = 3'b011,
-    MAIN_MEMORY_STATE = 3'b100,
-    MAIN_WRITE_BACK_STATE = 3'b101
-   } main_current_state, main_next_state;
+    // MEMORY STARTS
+    logic memory_done, memory_ready;
 
+    //InstructionMemory's pipeline register vars
+    logic mem_wb_valid_reg, mem_wb_valid_reg_next;
+    logic [63:0] mem_wb_target_address, mem_wb_target_address_next;
+    logic [63:0] mem_wb_control_signals_reg, mem_wb_control_signals_reg_next;
+    logic [63:0] mem_wb_loaded_data, mem_wb_loaded_data_next;
+    logic [63:0] mem_wb_alu_data, mem_wb_reg_alu_data_next;
 
-  //next state selection logic
-  always_comb begin
-      case (current_state)
-          MAIN_IDLE_STATE: begin
-              // next_state = fetch_enable? FETCHER_REQUEST_STATE: FETCHER_IDLE_STATE;
-          end
+    InstructionMemoryHandler instructionMemoryHandler(
+        clk(clk),                
+        reset(reset),            
+        pc_I_offset(ex_mem_pc_plus_I_offset_reg),        
+        reg_b_contents(ex_mem_reg_b_data),         
+        alu_data(ex_mem_reg_alu_data),    
+        control_signals(ex_mem_control_signals_reg),    
+        target_address_out(mem_wb_target_address_next),
+        control_signals_out(mem_wb_control_signals_reg_next),  
+        loaded_data_out(mem_wb_loaded_data_next),
+        alu_data_out(mem_wb_alu_data_next),
+        memory_done(memory_done) 
+    );
 
-          MAIN_FETCH_STATE: begin
-              // next_state = cache_request_ready? FETCHER_WAIT_STATE: FETCHER_REQUEST_STATE;
+    assign memory_ready = ~ex_mem_imm_reg;
 
-              next_state = F_fetch_ack? MAIN_IF_ID_STATE: MAIN_FETCH_STATE;
-              //todo - set the fetch ack so that the fetcher stops.
-              //todo - move ahead to the pipelining stage now
-          end
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            mem_wb_target_address <= 64'b0;
+            mem_wb_control_signals_reg <= 64'b0;
+            mem_wb_loaded_data <= 64'b0;
+            mem_wb_alu_data <= 64'b0;
+        end else begin
+            if (memory_done && memory_ready) begin
+                // Load decoded instruction into EX/MEM pipeline registers
+                mem_wb_target_address <= mem_wb_target_address_next;
+                mem_wb_control_signals_reg <= mem_wb_control_signals_reg_next;
+                mem_wb_loaded_data <= mem_wb_loaded_data_next;
+                mem_wb_alu_data <= mem_wb_alu_data_next;
+            end
+            // When execute stage reads the data
+/*             if (execute_ready) begin
+                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
+            end */
+        end
+    end
 
-          MAIN_IF_ID_STATE: begin
-            
-          end
+    // WRITE BACK STARTS
+    logic write_back_done, write_back_ready;
 
-          MAIN_DECODE_STATE: begin
-              // next_state = cache_result_ready? FETCHER_DONE_STATE: FETCHER_WAIT_STATE;
-          end
+    //InstructionWriteBacks's output vars
+    logic [63:0] wb_dest_reg_out, wb_dest_reg_out_next;
+    logic [63:0] wb_data_out, wb_data_out_next;
 
-          MAIN_EXECUTE_STATE: begin
-              // next_state = fetch_ack? FETCHER_IDLE_STATE: FETCHER_DONE_STATE;
-          end
+    InstructionWriteBack instructionMemoryHandler (
+        clk(clk),
+        reset(reset),
+        loaded_data(mem_wb_loaded_data),
+        alu_data(mem_wb_alu_data),
+        control_signals(mem_wb_control_signals_reg),
+        dest_reg_out(wb_dest_reg_out_next),
+        data_out(wb_data_out_next),
+        write_back_done(write_back_done)
+    );
 
-          MAIN_MEMORY_STATE: begin
-              // next_state = fetch_ack? FETCHER_IDLE_STATE: FETCHER_DONE_STATE;
-          end
-
-          MAIN_WRITE_BACK_STATE: begin
-              // next_state = fetch_ack? FETCHER_IDLE_STATE: FETCHER_DONE_STATE;
-          end
-      endcase
-  end
-
-    //output variable update logic
-  always_comb begin
-      case (current_state)
-          MAIN_IDLE_STATE: begin
-              T_fetcher_done_next = 0;
-              T_instruction_out_next = 64'b0;
-              T_address_out_next = 64'b0;
-              F_fetch_ack = 0;
-          end
-
-          MAIN_FETCH_STATE: begin
-              if (F_fetcher_done) begin
-                      // Fetcher has completed its task
-                      T_fetcher_done_next = 1;
-                      T_instruction_out_next = F_instruction_out;
-                      T_address_out_next = F_address_out;
-                      F_fetch_ack = 1; // Acknowledge to fetcher that fetch is complete
-                  end else begin
-                      // Fetch is not complete, keep previous values
-                      T_fetcher_done_next = 0;
-                      T_instruction_out_next = F_instruction_out;
-                      T_address_out_next = F_address_out;
-                      F_fetch_ack = 0;
-                  end     
-          end
-
-          MAIN_IF_ID_STATE: begin
-
-          end
-
-          MAIN_DECODE_STATE: begin
-              // next_state = cache_result_ready? FETCHER_DONE_STATE: FETCHER_WAIT_STATE;
-          end
-
-          MAIN_EXECUTE_STATE: begin
-              // next_state = fetch_ack? FETCHER_IDLE_STATE: FETCHER_DONE_STATE;
-          end
-
-          MAIN_MEMORY_STATE: begin
-              // next_state = fetch_ack? FETCHER_IDLE_STATE: FETCHER_DONE_STATE;
-          end
-
-          MAIN_WRITE_BACK_STATE: begin
-              // next_state = fetch_ack? FETCHER_IDLE_STATE: FETCHER_DONE_STATE;
-          end
-      endcase
-  end
-
-
-  always_ff @(posedge clk or negedge reset) begin
-      if (!reset) begin
-          pc <= entry;
-          current_state <= MAIN_IDLE_STATE;
-      end else begin
-          case (current_state)
-              MAIN_IDLE_STATE: begin
-                  
-              end
-
-              MAIN_FETCH_STATE: begin
-                  
-              end
-
-              MAIN_IF_ID_STATE: begin
-                // You can use the fetched data here or pass it to the next stage
-
-              end
-
-              MAIN_DECODE_STATE: begin
-                  // Empty block
-              end
-
-              MAIN_EXECUTE_STATE: begin
-                  // Empty block
-              end
-
-              MAIN_MEMORY_STATE: begin
-                  // Empty block
-              end
-
-              MAIN_WRITE_BACK_STATE: begin
-                  // Empty block
-              end
-
-              default: begin
-                  // Empty block
-              end
-          endcase
-      end
-  end
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            wb_dest_reg_out <= 64'b0;
+            wb_data_out <= 64'b0;
+        end else begin
+            if (write_back_done && write_back_done) begin
+                // Load decoded instruction to feed into register
+                wb_dest_reg_out <= wb_dest_reg_out_next;
+                wb_data_out <= wb_data_out_next;
+            end
+            // When execute stage reads the data
+/*             if (execute_ready) begin
+                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
+            end */
+        end
+    end
+  
 endmodule

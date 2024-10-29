@@ -3,6 +3,7 @@ module InstructionFetcher (
     input  logic        reset,            // Active-low reset
     input  logic        fetch_enable,       // Signal to start or remain idle
     input  logic        fetch_ack,       // Signal to acknowledge collection of outputs
+    input  logic        start_flag,
     input  logic [63:0] pc_current,         // Current PC value (64 bits)
     input  logic [63:0] target_address,     // Target address for branches/jumps (64 bits)
     input  logic        select_target,      // Control signal for address selection
