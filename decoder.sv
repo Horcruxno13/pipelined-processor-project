@@ -13,18 +13,13 @@ module InstructionDecoder (
     output signed [63:0] imm,                       // Immediate value
     output logic [63:0] shamt,                      // Shift amount
     output logic [7:0] instruction_type,            // Instruction type
-    output logic [3:0] pred,                        // Predecessor for fence
-    output logic [3:0] succ,                        // Successor for fence
+    output control_signals_struct control_signals_out,
     output logic decode_complete
 );
 
     logic [2:0] funct3;
     logic [6:0] funct7;
-    logic decode_complete_next;
 
-    always_ff @(posedge clk) begin
-        decode_complete <= decode_complete_next;
-    end
     // Decoding logic purely combinational
     always_comb begin
         // Extract fields from the instruction
@@ -306,15 +301,19 @@ module InstructionDecoder (
                             endcase
                         end
 
-                        // FENCE (I-Type) Instructions
+/*                      FENCE (I-Type) Instructions
                         7'b0001111: begin
                             pred = instruction[27:24];
                             succ = instruction[23:20];
                             instruction_type = 8'd66;  // FENCE (new value)
-                        end
+                        end */
 
                         default: instruction_type = 8'b11111111; // Unknown Instruction
                     endcase
+                    control_signals_out.imm <= imm;
+                    control_signals_out.opcode <= opcode;
+                    control_signals_out.shamt <= shamt;
+                    control_signals_out.instruction <= instruction_type;
                     if (instruction_type == 8'b11111111) begin
                         $display("CANNOT DETECT TYPE");
                     end
@@ -327,7 +326,7 @@ module InstructionDecoder (
                 instruction_type = 8'b0; // Default to unknown
                 //decode_complete_next = 0;
             end
-            decode_complete_next = 1;
+            decode_complete = 1;
         end else begin
             rd = 5'b0;
             rs1 = 5'b0;
@@ -335,7 +334,7 @@ module InstructionDecoder (
             imm = 64'b0; // Default to zero
             shamt = 64'b0; // Default to zero
             instruction_type = 8'b0; // Default to unknown
-            decode_complete_next = 0;
+            decode_complete = 0;
         end
         
     end

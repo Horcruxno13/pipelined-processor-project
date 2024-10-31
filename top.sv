@@ -3,6 +3,7 @@
 `include "pipeline_register.sv"
 `include "pipeline_reg_struct.svh"
 `include "write_back.sv"
+`include "control_signals_struct.svh"
 
 module top
 #(
@@ -75,17 +76,20 @@ assign target_address = 0;
 assign mux_selector = 0;
 
   // Ready/valid handshakes for Fetch, Decode, and Execute stages
-  logic fetcher_done, fetch_ready;
+  logic fetcher_done, fetch_ready, fetch_enable = 1;
 
    //InstructionFetcher's pipeline register vars
-   logic if_id_valid_reg, if_id_valid_reg_next;
+   logic if_id_valid_reg;
    logic [31:0] if_id_instruction_reg, if_id_instruction_reg_next;
    logic [63:0] if_id_pc_plus_i_reg, if_id_pc_plus_i_reg_next;
+
+
 
     //InstructionFetcher instantiation
     InstructionFetcher instructionFetcher (
         .clk(clk),
         .reset(reset),
+        .fetch_enable(fetch_enable),
         .pc_current(initial_pc),
         .target_address(target_address),
         .select_target(mux_selector),
@@ -94,38 +98,33 @@ assign mux_selector = 0;
         .fetcher_done(fetcher_done),
     );
 
-  // Fetcher ready logic
-  assign fetch_ready = ~if_id_valid_reg;
-
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
     always_ff @(posedge clk) begin
         if (reset) begin
             if_id_instruction_reg <= 32'b0;
             if_id_pc_plus_i_reg <= 64'b0;
-            if_id_valid_reg <= 1'b0;
         end else begin
-            if (fetcher_done && fetch_ready) begin
+            if (fetcher_done && fetch_enable) begin
                 // Load fetched instruction into IF/ID pipeline registers
                 if_id_instruction_reg <= if_id_instruction_reg_next;
                 if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
-                if_id_valid_reg <= 1'b1; // Data in IF/ID is valid
+                if_id_valid_reg <= 1;
+            end else begin 
+                if_id_valid_reg <= 0;
             end
-            /* // When decode stage reads the data
-            if (decode_ready) begin
-                if_id_valid_reg <= 1'b0; // Clear valid once read by decode
-            end */
         end
     end
 
+
     // DECODER STARTS
-    logic decode_done, decode_ready;
+    logic decode_done, decode_ready, decode_enable = 1;
 
     //InstructionDecoder's pipeline register vars
-    logic id_ex_valid_reg, id_ex_valid_reg_next;
+    logic id_ex_valid_reg;
     logic [63:0] id_ex_reg_a_reg, id_ex_reg_a_reg_next;
     logic [63:0] id_ex_reg_b_reg, id_ex_reg_b_reg_next;
     logic [63:0] id_ex_pc_plus_I_reg, id_ex_pc_plus_I_reg_next;
-    logic [63:0] id_ex_control_signals_reg, id_ex_control_signals_reg_next;
+    logic control_signals_struct id_ex_control_signal_struct, id_ex_control_signal_struct_next;
 
     InstructionDecoder instructionDecoder (
         .clk(clk),
@@ -135,13 +134,9 @@ assign mux_selector = 0;
         .reg_a_out(id_ex_reg_a_reg_next),      // Example output: reg_a
         .reg_b_out(id_ex_reg_b_reg_next),      // Example output: reg_b
         .pc_plus_I_out(id_ex_pc_plus_I_reg_next), // Example output: PC + 1
-        .control_signals(id_ex_control_signals_reg_next), // Example output: control signals
+        .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
         .decode_complete(decode_done)
     );
-
-    // Decoder ready logic
-    // assign decode_ready = ~id_ex_valid_reg || execute_ready;
-    assign decode_ready = ~id_ex_valid_reg;
 
     // ID/EX Pipeline Register Logic (between Decode and Execute stages)
     always_ff @(posedge clk) begin
@@ -149,35 +144,38 @@ assign mux_selector = 0;
             id_ex_pc_plus_1_reg <= 64'b0;
             id_ex_reg_a_reg <= 64'b0;
             id_ex_reg_b_reg <= 64'b0;
-            id_ex_control_signals_reg <= 64'b0;
             id_ex_imm_reg <= 64'b0;
             id_ex_valid_reg <= 1'b0;
         end else begin
-            if (decode_done && decode_ready) begin
-                // Load decoded instruction into ID/EX pipeline registers
+            if (decode_done && decode_enable) begin
+                // Load fetched instruction into ID/EX pipeline registers
                 id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
                 id_ex_reg_a_reg <= id_ex_reg_a_reg_next;
                 id_ex_reg_b_reg <= id_ex_reg_b_reg_next;
-                id_ex_control_signals_reg <= id_ex_control_signals_reg_next;
+                id_ex_control_signal_struct.imm <= id_ex_control_signal_struct_next.imm;
+                id_ex_control_signal_struct.opcode <= id_ex_control_signal_struct_next.opcode;
+                id_ex_control_signal_struct.shamt <= id_ex_control_signal_struct_next.shamt;
+                id_ex_control_signal_struct.instruction <= id_ex_control_signal_struct_next.instruction;
                 id_ex_imm_reg <= id_ex_imm_reg_next;
-                id_ex_valid_reg <= 1'b1; // Data in ID/EX is valid
+                id_ex_valid_reg <= 1;
+            end else begin 
+                id_ex_valid_reg <= 0;
             end
-            // When execute stage reads the data
-/*             if (execute_ready) begin
-                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
-            end */
         end
     end
 
+
+
     // EXECUTOR STARTS
-    logic execute_done, execute_ready;
+    logic execute_done, execute_ready, execute_enable;
 
     //InstructionExecutor's pipeline register vars
     logic ex_mem_valid_reg, ex_mem_valid_reg_next;
+    logic jump_signal, jump_signal_next;
     logic [63:0] ex_mem_pc_plus_I_offset_reg, ex_mem_pc_plus_I_offset_reg_next;
     logic [63:0] ex_mem_alu_data, ex_mem_reg_alu_data_next;
     logic [63:0] ex_mem_reg_b_data, ex_mem_reg_b_data_next;
-    logic [63:0] ex_mem_control_signals_reg, ex_mem_control_signals_reg_next;
+    logic control_signals_struct ex_mem_control_signal_struct;
 
     InstructionExecutor instructionExecutor (
         clk(clk),
@@ -185,11 +183,10 @@ assign mux_selector = 0;
         pc_current(id_ex_pc_plus_1_reg),
         reg_a_contents(id_ex_reg_a_reg), 
         reg_b_contents(id_ex_reg_b_reg), 
-        control_signals(id_ex_control_signals_reg),
-        control_signals_out(ex_mem_control_signals_reg_next), 
-        reg_b_data_out(ex_mem_reg_b_data_next),
+        control_signals(id_ex_control_signal_struct),
         alu_data_out(ex_mem_reg_alu_data_next),
         pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
+        jump_enable(jump_signal_next),
         execute_done(execute_done) 
     );
     
@@ -199,9 +196,8 @@ assign mux_selector = 0;
     // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
     always_ff @(posedge clk) begin
         if (reset) begin
-            ex_mem_pc_plus_I_offset_reg <= 64'b0;
             ex_mem_alu_data <= 64'b0;
-            ex_mem_reg_b_data <= 64'b0;
+            ex_mem_pc_plus_I_offset_reg <= 64'b0;
             ex_mem_control_signals_reg <= 64'b0;
         end else begin
             if (execute_done && execute_ready) begin
@@ -209,7 +205,7 @@ assign mux_selector = 0;
                 ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
                 ex_mem_alu_data <= ex_mem_alu_data_next;
                 ex_mem_reg_b_data <= ex_mem_reg_b_data_next;
-                ex_mem_control_signals_reg <= ex_mem_control_signals_reg_next;
+                ex_mem_control_signals_reg <= id_ex_control_signal_struct;
             end
             // When execute stage reads the data
 /*             if (execute_ready) begin
@@ -300,5 +296,71 @@ assign mux_selector = 0;
             end */
         end
     end
+
+     /*   module InstructionFetcher (
+    input  logic        clk,                // Clock signal
+    input  logic        reset,            // Active-low reset
+    input  logic        fetch_ack,       // Signal to acknowledge collection of outputs
+    input  logic [63:0] pc_current,         // Current PC value (64 bits)
+    input  logic [63:0] target_address,     // Target address for branches/jumps (64 bits)
+    input  logic        select_target,      // Control signal for address selection
+    output logic [63:0] instruction_out,    // Instruction bits fetched from cache (64 bits)
+    output logic [63:0] address_out,        // Address used for fetching (64 bits)
+    output logic        fetcher_done,               // Ready signal indicating fetch completion
+); */
+
+     /*   Fetcher ready logic
+  assign fetch_ready = ~if_id_valid_reg;
+
+    IF/ID Pipeline Register Logic (between Fetch and Decode stages)
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            if_id_instruction_reg <= 32'b0;
+            if_id_pc_plus_i_reg <= 64'b0;
+            if_id_valid_reg <= 1'b0;
+        end else begin
+            if (fetcher_done && fetch_ready) begin
+                // Load fetched instruction into IF/ID pipeline registers
+                if_id_instruction_reg <= if_id_instruction_reg_next;
+                if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
+                if_id_valid_reg <= 1'b1; // Data in IF/ID is valid
+            end
+            // When decode stage reads the data
+            if (decode_ready) begin
+                if_id_valid_reg <= 1'b0; // Clear valid once read by decode
+            end 
+        end
+    end */
+
+    /*
+    // Decoder ready logic
+    // assign decode_ready = ~id_ex_valid_reg || execute_ready;
+    assign decode_ready = ~id_ex_valid_reg;
+
+    // ID/EX Pipeline Register Logic (between Decode and Execute stages)
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            id_ex_pc_plus_1_reg <= 64'b0;
+            id_ex_reg_a_reg <= 64'b0;
+            id_ex_reg_b_reg <= 64'b0;
+            id_ex_control_signals_reg <= 64'b0;
+            id_ex_imm_reg <= 64'b0;
+            id_ex_valid_reg <= 1'b0;
+        end else begin
+            if (decode_done && decode_ready) begin
+                // Load decoded instruction into ID/EX pipeline registers
+                id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
+                id_ex_reg_a_reg <= id_ex_reg_a_reg_next;
+                id_ex_reg_b_reg <= id_ex_reg_b_reg_next;
+                id_ex_control_signals_reg <= id_ex_control_signals_reg_next;
+                id_ex_imm_reg <= id_ex_imm_reg_next;
+                id_ex_valid_reg <= 1'b1; // Data in ID/EX is valid
+            end
+            // When execute stage reads the data
+            //  if (execute_ready) begin
+            //     id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
+            // end 
+        end
+    end*/
   
 endmodule

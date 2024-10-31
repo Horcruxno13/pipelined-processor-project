@@ -1,9 +1,6 @@
 module InstructionFetcher (
     input  logic        clk,                // Clock signal
-    input  logic        reset,            // Active-low reset
-    input 
-    input  logic        fetch_ack,       // Signal to acknowledge collection of outputs
-    input  logic        start_flag,
+    input  logic        reset,            // Active-low reset 
     input  logic [63:0] pc_current,         // Current PC value (64 bits)
     input  logic [63:0] target_address,     // Target address for branches/jumps (64 bits)
     input  logic        select_target,      // Control signal for address selection
@@ -112,7 +109,7 @@ always_comb begin
         if (cache_result_ready) begin
             fetcher_done = 1;
         end else begin
-            cache_request_ready = 0;
+            // cache_request_ready = 0;
             fetcher_done = 0;
         end
     end
