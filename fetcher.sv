@@ -1,7 +1,7 @@
 module InstructionFetcher (
     input  logic        clk,                // Clock signal
     input  logic        reset,            // Active-low reset
-    input  logic        fetch_enable,       // Signal to start or remain idle
+    input 
     input  logic        fetch_ack,       // Signal to acknowledge collection of outputs
     input  logic        start_flag,
     input  logic [63:0] pc_current,         // Current PC value (64 bits)
@@ -9,21 +9,22 @@ module InstructionFetcher (
     input  logic        select_target,      // Control signal for address selection
     output logic [63:0] instruction_out,    // Instruction bits fetched from cache (64 bits)
     output logic [63:0] address_out,        // Address used for fetching (64 bits)
-    output logic        fetcher_done               // Ready signal indicating fetch completion
+    output logic        fetcher_done,               // Ready signal indicating fetch completion
 );
 
 // Internal wires and registers (if needed)
 logic [63:0] selected_address;
 logic cache_request_ready;
-logic        cache_ready;
+logic [63:0] cache_result;
+logic cache_miss_occurred;
 
- //STATE DEFINITION SIGNALS
+/*  STATE DEFINITION SIGNALS
    enum {
     FETCHER_IDLE_STATE = 2'b00,
     FETCHER_REQUEST_STATE = 2'b01,
     FETCHER_WAIT_STATE = 2'b10,
     FETCHER_DONE_STATE = 2'b11
-  } current_state, next_state;
+  } current_state, next_state; */
 
 
 /*   // Cache instantiation
@@ -53,6 +54,7 @@ module cache (
         .write_enable(null),
         .byte_enable(null),
         .read_data(null),
+        .cache_result(instruction_out)
         .data_valid(cache_result_ready), //output that fetcher gets
         .write_complete(null)
     );  
@@ -60,7 +62,7 @@ module cache (
 
 
 
-//next state selection logic
+/* next state selection logic
 always_comb begin
     case (current_state)
         FETCHER_IDLE_STATE: begin
@@ -81,7 +83,7 @@ always_comb begin
     endcase
 end
 
-// Output assignment logic
+Output assignment logic
 always_comb begin
     if (current_state == FETCHER_IDLE_STATE) begin
         fetcher_done_next = 0
@@ -96,26 +98,41 @@ always_comb begin
     else if (current_state == FETCHER_DONE_STATE) begin
         fetcher_done_next = 1;
     end
-    
+end */
+
+// No states
+always_comb begin
+    if (reset) begin
+        fetcher_done = 0
+        cache_request_address  = 64'b0;
+        cache_request_ready = 0;
+    end else begin
+        cache_request_address = select_target? pc_current : target_address;
+        cache_request_ready = 1;
+        if (cache_result_ready) begin
+            fetcher_done = 1;
+        end else begin
+            cache_request_ready = 0;
+            fetcher_done = 0;
+        end
+    end
 end
 
 // Sequential logic (state updates, if any)
-always_ff @(posedge clk) begin
-    if (reset) begin
-        current_state <= FETCHER_IDLE_STATE;
-    end else if (current_state == FETCHER_IDLE_STATE) begin
-        fetcher_done <= fetcher_done_next;        
-        cache_request_address <= cache_request_address_next;
-        cache_request_ready <= cache_request_ready_next;
-    end else if (current_state == FETCHER_REQUEST_STATE) begin
-        cache_request_address <= cache_request_address_next;
-        cache_request_ready <= cache_request_ready_next;
-    // end else if (current_state == FETCHER_WAIT_STATE) begin
-    end else if (current_state == FETCHER_DONE_STATE) begin
-        fetcher_done <= fetcher_done_next;
-    end
-
-        
-end
+// always_ff @(posedge clk) begin
+//     if (reset) begin
+//         current_state <= FETCHER_IDLE_STATE;
+//     end else if (current_state == FETCHER_IDLE_STATE) begin
+//         fetcher_done <= fetcher_done_next;        
+//         cache_request_address <= cache_request_address_next;
+//         cache_request_ready <= cache_request_ready_next;
+//     end else if (current_state == FETCHER_REQUEST_STATE) begin
+//         cache_request_address <= cache_request_address_next;
+//         cache_request_ready <= cache_request_ready_next;
+//     // end else if (current_state == FETCHER_WAIT_STATE) begin
+//     end else if (current_state == FETCHER_DONE_STATE) begin
+//         fetcher_done <= fetcher_done_next;
+//     end  
+// end
 
 endmodule
