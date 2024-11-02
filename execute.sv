@@ -36,7 +36,7 @@ module InstructionExecutor (
                 opcode == 7'b1100111)            // I-Type JALR
             begin
                 // do pc manipulation
-                pc_I_offset_out = pc_current + control_signals.imm;
+                pc_I_offset_out = pc_current + control_signals.imm; // TODO:include relative and abs calc
                 jump_enable = 1;
             end else begin
                 // do alu

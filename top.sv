@@ -70,6 +70,21 @@ logic [63:0] initial_pc;
 logic [63:0] target_address;
 logic initial_selector;
 
+// Initialise Register
+register_file registerFile(
+    .clk(clk),
+    .reset(reset),
+    .read_addr1(read_addr1),
+    .read_addr2(read_addr2),
+    .write_enable(write_enable),
+    .write_addr(write_addr),
+    .write_data(write_data),
+    .read_data1(read_data1),
+    .read_data2(read_data2),
+    .write_complete(write_complete),
+    .register(register)
+);
+
 // Assign initial PC value from entry point
 assign [63:0] initial_pc = entry;
 assign target_address = 0;
@@ -121,8 +136,8 @@ assign mux_selector = 0;
 
     //InstructionDecoder's pipeline register vars
     logic id_ex_valid_reg;
-    logic [63:0] id_ex_reg_a_reg, id_ex_reg_a_reg_next;
-    logic [63:0] id_ex_reg_b_reg, id_ex_reg_b_reg_next;
+    logic [63:0] id_ex_reg_a_data, id_ex_reg_a_addr;
+    logic [63:0] id_ex_reg_b_data, id_ex_reg_b_addr;
     logic [63:0] id_ex_pc_plus_I_reg, id_ex_pc_plus_I_reg_next;
     logic control_signals_struct id_ex_control_signal_struct, id_ex_control_signal_struct_next;
 
@@ -150,13 +165,24 @@ assign mux_selector = 0;
             if (decode_done && decode_enable) begin
                 // Load fetched instruction into ID/EX pipeline registers
                 id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
-                id_ex_reg_a_reg <= id_ex_reg_a_reg_next;
-                id_ex_reg_b_reg <= id_ex_reg_b_reg_next;
                 id_ex_control_signal_struct.imm <= id_ex_control_signal_struct_next.imm;
                 id_ex_control_signal_struct.opcode <= id_ex_control_signal_struct_next.opcode;
                 id_ex_control_signal_struct.shamt <= id_ex_control_signal_struct_next.shamt;
                 id_ex_control_signal_struct.instruction <= id_ex_control_signal_struct_next.instruction;
                 id_ex_imm_reg <= id_ex_imm_reg_next;
+                // pass to reg
+                read_addr1 <= id_ex_reg_a_addr;
+                read_addr2 <= id_ex_reg_b_addr;
+                write_enable <= 0;
+                write_addr <= 0;
+                write_data <= 0;
+                write_complete <= 0;
+                register_values_ready <= 1'b1;       // Signal next cycle to read data
+            end else if (register_values_ready) begin
+                // Step 2: Latch register file output values to pipeline registers
+                id_ex_reg_a_data <= read_data1;
+                id_ex_reg_b_data <= read_data2;
+                register_values_ready <= 1'b0;       // Clear the flag
                 id_ex_valid_reg <= 1;
             end else begin 
                 id_ex_valid_reg <= 0;
@@ -164,120 +190,117 @@ assign mux_selector = 0;
         end
     end
 
-
-
     // EXECUTOR STARTS
     logic execute_done, execute_ready, execute_enable;
 
     //InstructionExecutor's pipeline register vars
-    logic ex_mem_valid_reg, ex_mem_valid_reg_next;
-    logic jump_signal, jump_signal_next;
+    logic ex_mem_valid_reg;
+    logic ex_mem_jump_signal, ex_mem_jump_signal_next;
     logic [63:0] ex_mem_pc_plus_I_offset_reg, ex_mem_pc_plus_I_offset_reg_next;
-    logic [63:0] ex_mem_alu_data, ex_mem_reg_alu_data_next;
-    logic [63:0] ex_mem_reg_b_data, ex_mem_reg_b_data_next;
+    logic [63:0] ex_mem_alu_data, ex_mem_alu_data_next;
+    logic [63:0] ex_mem_reg_b_data;
     logic control_signals_struct ex_mem_control_signal_struct;
 
     InstructionExecutor instructionExecutor (
         clk(clk),
         reset(reset),
         pc_current(id_ex_pc_plus_1_reg),
-        reg_a_contents(id_ex_reg_a_reg), 
-        reg_b_contents(id_ex_reg_b_reg), 
+        reg_a_contents(id_ex_reg_a_data), 
+        reg_b_contents(id_ex_reg_b_data), 
         control_signals(id_ex_control_signal_struct),
-        alu_data_out(ex_mem_reg_alu_data_next),
+        alu_data_out(ex_mem_alu_data_next),
         pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
         jump_enable(jump_signal_next),
         execute_done(execute_done) 
     );
-    
-    // Execute logic ready
-    assign execute_ready = ~id_ex_imm_reg;
 
     // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
     always_ff @(posedge clk) begin
         if (reset) begin
             ex_mem_alu_data <= 64'b0;
             ex_mem_pc_plus_I_offset_reg <= 64'b0;
-            ex_mem_control_signals_reg <= 64'b0;
+            ex_mem_reg_b_data <= 64'b0;
+            ex_mem_control_signal_struct.imm <= 64'b0;
+            ex_mem_control_signal_struct.shamt <= 64'b0;
+            ex_mem_control_signal_struct.opcode <= 7'b0;
+            ex_mem_control_signal_struct.instruction <= 8'b0;
+            ex_mem_jump_signal <= 0;
         end else begin
-            if (execute_done && execute_ready) begin
+            if (execute_done && execute_enable) begin
                 // Load decoded instruction into EX/MEM pipeline registers
                 ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
                 ex_mem_alu_data <= ex_mem_alu_data_next;
-                ex_mem_reg_b_data <= ex_mem_reg_b_data_next;
-                ex_mem_control_signals_reg <= id_ex_control_signal_struct;
+                ex_mem_reg_b_data <= id_ex_reg_b_reg;
+                ex_mem_control_signal_struct <= id_ex_control_signal_struct;
+                ex_mem_jump_signal <= ex_mem_jump_signal_next;
+                ex_mem_valid_reg <= 1;
+            end else begin
+                ex_mem_valid_reg <= 0;
             end
-            // When execute stage reads the data
-/*             if (execute_ready) begin
-                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
-            end */
         end
     end
 
-
     // MEMORY STARTS
-    logic memory_done, memory_ready;
+    logic memory_done, memory_ready, memory_enable;
 
     //InstructionMemory's pipeline register vars
-    logic mem_wb_valid_reg, mem_wb_valid_reg_next;
-    logic [63:0] mem_wb_target_address, mem_wb_target_address_next;
-    logic [63:0] mem_wb_control_signals_reg, mem_wb_control_signals_reg_next;
     logic [63:0] mem_wb_loaded_data, mem_wb_loaded_data_next;
-    logic [63:0] mem_wb_alu_data, mem_wb_reg_alu_data_next;
+    logic [63:0] mem_wb_target_address;
+    logic mem_wb_jump_enable_signal;
+    logic control_signals_struct mem_wb_control_signals_reg;
+    logic [63:0] mem_wb_alu_data;
+    logic mem_wb_valid_reg;
 
     InstructionMemoryHandler instructionMemoryHandler(
         clk(clk),                
         reset(reset),            
         pc_I_offset(ex_mem_pc_plus_I_offset_reg),        
         reg_b_contents(ex_mem_reg_b_data),         
-        alu_data(ex_mem_reg_alu_data),    
-        control_signals(ex_mem_control_signals_reg),    
-        target_address_out(mem_wb_target_address_next),
-        control_signals_out(mem_wb_control_signals_reg_next),  
+        alu_data(ex_mem_alu_data),    
+        control_signals(ex_mem_control_signal_struct),    
         loaded_data_out(mem_wb_loaded_data_next),
-        alu_data_out(mem_wb_alu_data_next),
         memory_done(memory_done) 
     );
 
-    assign memory_ready = ~ex_mem_imm_reg;
+    // assign memory_ready = ~ex_mem_imm_reg;
 
     always_ff @(posedge clk) begin
         if (reset) begin
             mem_wb_target_address <= 64'b0;
-            mem_wb_control_signals_reg <= 64'b0;
+            mem_wb_control_signals_reg.imm <= 64'b0;
+            mem_wb_control_signals_reg.shamt <= 64'b0;
+            mem_wb_control_signals_reg.opcode <= 7'b0;
+            mem_wb_control_signals_reg.instruction <= 8'b0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
         end else begin
-            if (memory_done && memory_ready) begin
-                // Load decoded instruction into EX/MEM pipeline registers
-                mem_wb_target_address <= mem_wb_target_address_next;
-                mem_wb_control_signals_reg <= mem_wb_control_signals_reg_next;
+            mem_wb_target_address <= ex_mem_pc_plus_I_offset_reg;
+            mem_wb_jump_enable_signal <= ex_mem_jump_signal;
+            if (memory_done && memory_enable) begin
+                mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;
-                mem_wb_alu_data <= mem_wb_alu_data_next;
+                mem_wb_alu_data <= ex_mem_alu_data;
             end
-            // When execute stage reads the data
-/*             if (execute_ready) begin
-                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
-            end */
         end
     end
 
     // WRITE BACK STARTS
-    logic write_back_done, write_back_ready;
+    logic write_back_done, write_back_ready, write_back_enable;
 
     //InstructionWriteBacks's output vars
-    logic [63:0] wb_dest_reg_out, wb_dest_reg_out_next;
-    logic [63:0] wb_data_out, wb_data_out_next;
+    logic [63:0] wb_dest_reg_out;
+    logic [63:0] wb_data_out;
 
     InstructionWriteBack instructionMemoryHandler (
         clk(clk),
         reset(reset),
         loaded_data(mem_wb_loaded_data),
-        alu_data(mem_wb_alu_data),
+        alu_result(mem_wb_alu_data),
         control_signals(mem_wb_control_signals_reg),
-        dest_reg_out(wb_dest_reg_out_next),
-        data_out(wb_data_out_next),
-        write_back_done(write_back_done)
+        write_reg(wb_dest_reg_out),
+        write_data(wb_data_out),
+        write_back_done(write_back_done),
+        write_enable(wb_write_enable)
     );
 
     always_ff @(posedge clk) begin
@@ -285,15 +308,14 @@ assign mux_selector = 0;
             wb_dest_reg_out <= 64'b0;
             wb_data_out <= 64'b0;
         end else begin
-            if (write_back_done && write_back_done) begin
-                // Load decoded instruction to feed into register
-                wb_dest_reg_out <= wb_dest_reg_out_next;
-                wb_data_out <= wb_data_out_next;
+            if (write_back_done && write_back_enable) begin
+                // pass to reg
+                read_addr1 <= 0;
+                read_addr2 <= 0;
+                write_enable <= wb_write_enable;
+                write_addr <= wb_dest_reg_out_next;
+                write_data <= wb_data_out_next;                
             end
-            // When execute stage reads the data
-/*             if (execute_ready) begin
-                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
-            end */
         end
     end
 
@@ -361,6 +383,33 @@ assign mux_selector = 0;
             //     id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
             // end 
         end
-    end*/
+    end
+    
+    
+    // Execute logic ready
+    assign execute_ready = ~id_ex_imm_reg;
+
+    // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            ex_mem_alu_data <= 64'b0;
+            ex_mem_pc_plus_I_offset_reg <= 64'b0;
+            ex_mem_control_signals_reg <= 64'b0;
+        end else begin
+            if (execute_done && execute_ready) begin
+                // Load decoded instruction into EX/MEM pipeline registers
+                ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
+                ex_mem_alu_data <= ex_mem_alu_data_next;
+                ex_mem_reg_b_data <= ex_mem_reg_b_data_next;
+                ex_mem_control_signals_reg <= id_ex_control_signal_struct;
+            end
+            // When execute stage reads the data
+/*             if (execute_ready) begin
+                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
+            end
+        end
+    end
+    
+    */
   
 endmodule
