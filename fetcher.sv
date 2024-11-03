@@ -104,7 +104,7 @@ always_comb begin
         cache_request_address  = 64'b0;
         cache_request_ready = 0;
     end else begin
-        cache_request_address = select_target? pc_current : target_address;
+        cache_request_address = select_target ? target_address : pc_current + 4;  // todo: relative vs absolute
         cache_request_ready = 1;
         if (cache_result_ready) begin
             fetcher_done = 1;

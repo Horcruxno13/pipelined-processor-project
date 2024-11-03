@@ -18,11 +18,9 @@ module write_back
 
     input [31:0] alu_result,
     input [31:0] loaded_data,
-    input  control_signals_struct control_signals, //todo = change the type      // Control Signals
+    input  control_signals_struct control_signals,
+    input logic write_back_enable,
 
-
-
-    input [4:0] dest_reg, //todo - replace from control signals
     output [31:0] write_data, //todo - write back is a neater name here
     output [4:0] write_reg,
     output write_enable
@@ -34,7 +32,7 @@ module write_back
             write_data = 0;
             write_reg = 0;
             write_enable = 0;
-        end else begin
+        end else if (write_back_enable) begin
             // Jump, Store, Branch => Nothing happens
             if (opcode == 7'b0100011 ||          // S-Type Store
                 opcode == 7'b1100011 ||          // B-Type Branch
@@ -48,7 +46,7 @@ module write_back
             end else begin
             // Write back is happening
                 write_enable = 1;
-                write_reg = dest_reg;
+                write_reg = control_signals.dest_reg;
                 // Write back from ALU
                 if ((opcode == 7'b0110011) ||                // R-Type ALU instructions
                     (opcode == 7'b0111011) ||                // R-Type with multiplication
@@ -62,6 +60,10 @@ module write_back
                     write_data = loaded_data;
                 end
             end
+        end else begin
+            write_data = 0;
+            write_reg = 0;
+            write_enable = 0;
         end
     end
 endmodule

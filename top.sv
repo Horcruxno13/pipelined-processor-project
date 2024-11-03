@@ -161,14 +161,16 @@ assign mux_selector = 0;
             id_ex_reg_b_reg <= 64'b0;
             id_ex_imm_reg <= 64'b0;
             id_ex_valid_reg <= 1'b0;
+            id_ex_control_signal_struct.imm <= 64'b0;
+            id_ex_control_signal_struct.shamt <= 64'b0;
+            id_ex_control_signal_struct.opcode <= 7'b0;
+            id_ex_control_signal_struct.instruction <= 8'b0;
+            id_ex_control_signal_struct.memory_access <= 0;
         end else begin
             if (decode_done && decode_enable) begin
                 // Load fetched instruction into ID/EX pipeline registers
                 id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
-                id_ex_control_signal_struct.imm <= id_ex_control_signal_struct_next.imm;
-                id_ex_control_signal_struct.opcode <= id_ex_control_signal_struct_next.opcode;
-                id_ex_control_signal_struct.shamt <= id_ex_control_signal_struct_next.shamt;
-                id_ex_control_signal_struct.instruction <= id_ex_control_signal_struct_next.instruction;
+                id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
                 id_ex_imm_reg <= id_ex_imm_reg_next;
                 // pass to reg
                 read_addr1 <= id_ex_reg_a_addr;
@@ -204,6 +206,7 @@ assign mux_selector = 0;
     InstructionExecutor instructionExecutor (
         clk(clk),
         reset(reset),
+        execute_enable(id_ex_valid_reg),
         pc_current(id_ex_pc_plus_1_reg),
         reg_a_contents(id_ex_reg_a_data), 
         reg_b_contents(id_ex_reg_b_data), 
@@ -224,6 +227,7 @@ assign mux_selector = 0;
             ex_mem_control_signal_struct.shamt <= 64'b0;
             ex_mem_control_signal_struct.opcode <= 7'b0;
             ex_mem_control_signal_struct.instruction <= 8'b0;
+            ex_mem_control_signal_struct.memory_access <= 0;
             ex_mem_jump_signal <= 0;
         end else begin
             if (execute_done && execute_enable) begin
@@ -259,7 +263,8 @@ assign mux_selector = 0;
         alu_data(ex_mem_alu_data),    
         control_signals(ex_mem_control_signal_struct),    
         loaded_data_out(mem_wb_loaded_data_next),
-        memory_done(memory_done) 
+        memory_done(memory_done),
+        memory_enable(ex_mem_valid_reg)
     );
 
     // assign memory_ready = ~ex_mem_imm_reg;
@@ -271,6 +276,7 @@ assign mux_selector = 0;
             mem_wb_control_signals_reg.shamt <= 64'b0;
             mem_wb_control_signals_reg.opcode <= 7'b0;
             mem_wb_control_signals_reg.instruction <= 8'b0;
+            mem_wb_control_signals_reg.memory_access <= 0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
         end else begin
@@ -280,6 +286,9 @@ assign mux_selector = 0;
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;
                 mem_wb_alu_data <= ex_mem_alu_data;
+                mem_wb_valid_reg <= 1;
+            end else begin
+                mem_wb_valid_reg <= 0;
             end
         end
     end
@@ -300,7 +309,8 @@ assign mux_selector = 0;
         write_reg(wb_dest_reg_out),
         write_data(wb_data_out),
         write_back_done(write_back_done),
-        write_enable(wb_write_enable)
+        write_enable(wb_write_enable),
+        write_back_enable(mem_wb_valid_reg)
     );
 
     always_ff @(posedge clk) begin

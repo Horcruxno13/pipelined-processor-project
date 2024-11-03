@@ -8,6 +8,7 @@ module InstructionExecutor (
     input  logic [63:0] reg_a_contents,
     input  logic [63:0] reg_b_contents,
     input  control_signals_struct control_signals, 
+    input logic execute_enable,
 
     output logic [63:0] alu_data_out,               // ALU data output
     output logic [63:0] pc_I_offset_out,            // PC value to jump to
@@ -20,8 +21,11 @@ module InstructionExecutor (
         .rs2(reg_b_contents),
         .imm(control_signals.imm),
         .shamt(control_signals.shamt),
+        // .alu_enable(alu_enable),
         .result(alu_data_out)
     );
+
+    logic 
 
     always_comb begin
         if (reset) begin
@@ -29,7 +33,7 @@ module InstructionExecutor (
             alu_data_out = 64'b0;
             pc_I_offset_out = 64'b0;
             execute_done = 0;
-        end else begin
+        end else if (execute_enable) begin
             if (
                 opcode == 7'b1100011 ||          // B-Type Branch
                 opcode == 7'b1101111 ||          // JAL J-Type Jump
@@ -40,10 +44,16 @@ module InstructionExecutor (
                 jump_enable = 1;
             end else begin
                 // do alu
+                // alu_enable = 1;
                 pc_I_offset_out = 64'b0;
                 jump_enable = 0;
             end
             execute_done = 1;
+        end else begin
+            reg_b_data_out = 64'b0;
+            alu_data_out = 64'b0;
+            pc_I_offset_out = 64'b0;
+            execute_done = 0;
         end
     end
 

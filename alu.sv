@@ -90,12 +90,14 @@ module alu (
 	input logic [63:0] rs2, //value
 	input signed [63:0] imm, //value
 	input logic [63:0] shamt,
+	input logic alu_enable,
 	output signed [63:0] result
 	//output logic alu_done_flag
 );
 logic signed [63:0] signed_imm;
 
 always_comb begin
+	// if (alu_enable) begin
 		case(instruction)
 		// R TYPE
 			8'd0: begin // ADD
@@ -287,5 +289,6 @@ always_comb begin
 				result = $unsigned(rs1[31:0]) % $unsigned(rs2[31:0]);  
 			end
 		endcase
+	// end
 	end
 endmodule

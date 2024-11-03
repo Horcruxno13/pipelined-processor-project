@@ -314,6 +314,12 @@ module InstructionDecoder (
                     control_signals_out.opcode <= opcode;
                     control_signals_out.shamt <= shamt;
                     control_signals_out.instruction <= instruction_type;
+                    if (opcode == 7'b0000011 || opcode == 7'b0100011) begin
+                        control_signals_out.memory_access = 1;
+                    end else begin
+                        control_signals_out.memory_access = 0;
+                    end
+                    
                     if (instruction_type == 8'b11111111) begin
                         $display("CANNOT DETECT TYPE");
                     end
