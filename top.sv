@@ -99,6 +99,21 @@ assign mux_selector = 0;
    logic [63:0] if_id_pc_plus_i_reg, if_id_pc_plus_i_reg_next;
 
 
+   /*
+   
+   
+       // AXI interface inputs for read transactions
+    input logic m_axi_arready,                // Ready signal from AXI for read address
+    input logic m_axi_rvalid,                 // Data valid signal from AXI read data channel
+    input logic m_axi_rlast,                  // Last transfer of the read burst
+    input logic [63:0] m_axi_rdata,           // Data returned from AXI read channel
+    // AXI interface outputs for read transactions
+    output logic m_axi_arvalid,               // Valid signal for read address
+    output logic [63:0] m_axi_araddr,         // Read address output to AXI
+    output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
+    output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic m_axi_rready,                // Ready to accept data from AXI
+   */
 
     //InstructionFetcher instantiation
     InstructionFetcher instructionFetcher (
@@ -110,7 +125,16 @@ assign mux_selector = 0;
         .select_target(mux_selector),
         .instruction_out(if_id_instruction_reg_next),
         .address_out(if_id_pc_plus_i_reg_next),
-        .fetcher_done(fetcher_done),
+        .m_axi_arready(m_axi_arready),
+        .m_axi_rvalid(m_axi_rvalid),
+        .m_axi_rlast(m_axi_rlast),
+        .m_axi_rdata(m_axi_rdata),
+        .m_axi_arvalid(m_axi_arvalid),
+        .m_axi_araddr(m_axi_araddr),
+        .m_axi_arlen(m_axi_arlen),
+        .m_axi_arsize(m_axi_arsize),
+        .m_axi_rready(m_axi_rready),
+        .fetcher_done(fetcher_done)
     );
 
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
@@ -204,17 +228,18 @@ assign mux_selector = 0;
     logic control_signals_struct ex_mem_control_signal_struct;
 
     InstructionExecutor instructionExecutor (
-        clk(clk),
-        reset(reset),
-        execute_enable(id_ex_valid_reg),
-        pc_current(id_ex_pc_plus_1_reg),
-        reg_a_contents(id_ex_reg_a_data), 
-        reg_b_contents(id_ex_reg_b_data), 
-        control_signals(id_ex_control_signal_struct),
-        alu_data_out(ex_mem_alu_data_next),
-        pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
-        jump_enable(jump_signal_next),
-        execute_done(execute_done) 
+        .clk(clk),
+        .reset(reset),
+        .execute_enable(id_ex_valid_reg),
+        .pc_current(id_ex_pc_plus_1_reg),
+        .reg_a_contents(id_ex_reg_a_data), 
+        .reg_b_contents(id_ex_reg_b_data), 
+        .control_signals(id_ex_control_signal_struct),
+        .alu_data_out(ex_mem_alu_data_next),
+        .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
+        .jump_enable(jump_signal_next),
+        .execute_done(execute_done),
+        
     );
 
     // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
@@ -256,15 +281,24 @@ assign mux_selector = 0;
     logic mem_wb_valid_reg;
 
     InstructionMemoryHandler instructionMemoryHandler(
-        clk(clk),                
-        reset(reset),            
-        pc_I_offset(ex_mem_pc_plus_I_offset_reg),        
-        reg_b_contents(ex_mem_reg_b_data),         
-        alu_data(ex_mem_alu_data),    
-        control_signals(ex_mem_control_signal_struct),    
-        loaded_data_out(mem_wb_loaded_data_next),
-        memory_done(memory_done),
-        memory_enable(ex_mem_valid_reg)
+        .clk(clk),                
+        .reset(reset),            
+        .pc_I_offset(ex_mem_pc_plus_I_offset_reg),        
+        .reg_b_contents(ex_mem_reg_b_data),         
+        .alu_data(ex_mem_alu_data),    
+        .control_signals(ex_mem_control_signal_struct),    
+        .loaded_data_out(mem_wb_loaded_data_next),
+        .memory_done(memory_done),
+        .memory_enable(ex_mem_valid_reg),
+        .m_axi_arready(m_axi_arready),
+        .m_axi_rvalid(m_axi_rvalid),
+        .m_axi_rlast(m_axi_rlast),
+        .m_axi_rdata(m_axi_rdata),
+        .m_axi_arvalid(m_axi_arvalid),
+        .m_axi_araddr(m_axi_araddr),
+        .m_axi_arlen(m_axi_arlen),
+        .m_axi_arsize(m_axi_arsize),
+        .m_axi_rready(m_axi_rready),
     );
 
     // assign memory_ready = ~ex_mem_imm_reg;
@@ -301,16 +335,16 @@ assign mux_selector = 0;
     logic [63:0] wb_data_out;
 
     InstructionWriteBack instructionMemoryHandler (
-        clk(clk),
-        reset(reset),
-        loaded_data(mem_wb_loaded_data),
-        alu_result(mem_wb_alu_data),
-        control_signals(mem_wb_control_signals_reg),
-        write_reg(wb_dest_reg_out),
-        write_data(wb_data_out),
-        write_back_done(write_back_done),
-        write_enable(wb_write_enable),
-        write_back_enable(mem_wb_valid_reg)
+        .clk(clk),
+        .reset(reset),
+        .loaded_data(mem_wb_loaded_data),
+        .alu_result(mem_wb_alu_data),
+        .control_signals(mem_wb_control_signals_reg),
+        .write_reg(wb_dest_reg_out),
+        .write_data(wb_data_out),
+        .write_back_done(write_back_done),
+        .write_enable(wb_write_enable),
+        .write_back_enable(mem_wb_valid_reg)
     );
 
     always_ff @(posedge clk) begin

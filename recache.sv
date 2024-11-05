@@ -30,7 +30,7 @@ module cache #(
     // Data output and control signals
     output logic [63:0] data,                 // Data output to CPU
     output logic send_enable,                 // Indicates data is ready to send
-    output logic read_complete                // Indicates the read operation is complete
+    //output logic read_complete                // Indicates the read operation is complete
 );
 
 enum logic [3:0] {

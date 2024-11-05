@@ -7,6 +7,17 @@ module InstructionFetcher (
     output logic [63:0] instruction_out,    // Instruction bits fetched from cache (64 bits)
     output logic [63:0] address_out,        // Address used for fetching (64 bits)
     output logic        fetcher_done,               // Ready signal indicating fetch completion
+    // AXI interface inputs for read transactions
+    input logic m_axi_arready,                // Ready signal from AXI for read address
+    input logic m_axi_rvalid,                 // Data valid signal from AXI read data channel
+    input logic m_axi_rlast,                  // Last transfer of the read burst
+    input logic [63:0] m_axi_rdata,           // Data returned from AXI read channel
+    // AXI interface outputs for read transactions
+    output logic m_axi_arvalid,               // Valid signal for read address
+    output logic [63:0] m_axi_araddr,         // Read address output to AXI
+    output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
+    output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic m_axi_rready                // Ready to accept data from AXI
 );
 
 // Internal wires and registers (if needed)
@@ -25,19 +36,34 @@ logic cache_miss_occurred;
 
 
 /*   // Cache instantiation
-module cache (
-    input logic clock,                           // Clock signal
-    input logic reset,                           // Reset signal
-    
-    input logic [addr_width-1:0] address,        // Address for read/write
-    input logic [data_width-1:0] write_data,     // Data to write to cache
-    input logic read_enable,                     // Signal to enable read
-    input logic write_enable,                    // Signal to enable write
-    input logic [7:0] byte_enable,               // Byte enable (optional)
-    
-    output logic [data_width-1:0] read_data,     // Data read from cache
-    output logic data_valid,                     // Signals that read_data is ready
-    output logic write_complete                  // Signals write completion
+module recache (
+    (
+    input logic clock,
+    input logic reset,
+    input logic read_enable,                  // Signal to trigger a cache read
+    input logic write_enable,                 // Signal to trigger a cache write
+    input logic [63:0] address,               // Address to read/write from/to cache
+    input logic [2:0] data_size,              // Size of data requested (in bytes)
+    input logic send_complete,                // Indicates data transfer is complete
+
+    // AXI interface inputs for read transactions
+    input logic m_axi_arready,                // Ready signal from AXI for read address
+    input logic m_axi_rvalid,                 // Data valid signal from AXI read data channel
+    input logic m_axi_rlast,                  // Last transfer of the read burst
+    input logic [63:0] m_axi_rdata,           // Data returned from AXI read channel
+
+    // AXI interface outputs for read transactions
+    output logic m_axi_arvalid,               // Valid signal for read address
+    output logic [63:0] m_axi_araddr,         // Read address output to AXI
+    output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
+    output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic m_axi_rready,                // Ready to accept data from AXI
+
+    // Data output and control signals
+    output logic [63:0] data,                 // Data output to CPU
+    output logic send_enable,                 // Indicates data is ready to send
+    output logic read_complete                // Indicates the read operation is complete
+);
 );
  */
 
@@ -45,15 +71,24 @@ module cache (
     cache instruction_cache (
         .clock(clk),
         .reset(reset),
-        .address(cache_request_address), // input that fetcher sends
-        .write_data(null),
         .read_enable(cache_request_ready), //input that fetcher send
-        .write_enable(null),
-        .byte_enable(null),
-        .read_data(null),
-        .cache_result(instruction_out)
-        .data_valid(cache_result_ready), //output that fetcher gets
-        .write_complete(null)
+        .write_enable(0),
+        .address(cache_request_address), // input that fetcher sends
+        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000)
+        .send_complete(1)
+
+        .m_axi_arready(m_axi_arready),
+        .m_axi_rvalid(m_axi_rvalid),
+        .m_axi_rlast(m_axi_rlast),
+        .m_axi_rdata(m_axi_rdata),
+        .m_axi_arvalid(m_axi_arvalid),
+        .m_axi_araddr(m_axi_araddr),
+        .m_axi_arlen(m_axi_arlen),
+        .m_axi_arsize(m_axi_arsize),
+        .m_axi_rready(m_axi_rready),
+
+        .data(instruction_out),
+        .send_enable(cache_result_ready),
     );  
 
 

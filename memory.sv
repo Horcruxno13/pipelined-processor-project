@@ -8,9 +8,20 @@ module InstructionMemoryHandler (
     input logic memory_enable,
     output logic [63:0] loaded_data_out,
     output logic        memory_done               // Ready signal indicating fetch completion
+    // AXI interface inputs for read transactions
+    input logic m_axi_arready,                // Ready signal from AXI for read address
+    input logic m_axi_rvalid,                 // Data valid signal from AXI read data channel
+    input logic m_axi_rlast,                  // Last transfer of the read burst
+    input logic [63:0] m_axi_rdata,           // Data returned from AXI read channel
+    // AXI interface outputs for read transactions
+    output logic m_axi_arvalid,               // Valid signal for read address
+    output logic [63:0] m_axi_araddr,         // Read address output to AXI
+    output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
+    output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic m_axi_rready                // Ready to accept data from AXI
 );
 
-    cache data_cache (
+/*     cache data_cache (
         .clock(clk),
         .reset(reset),
         .address(alu_result),                  // if alu then this
@@ -22,7 +33,31 @@ module InstructionMemoryHandler (
         .cache_result(null),
         .data_valid(null), //output that fetcher gets
         .write_complete(cache_write_complete)
-    ); 
+    );  */
+
+
+    cache instruction_cache (
+        .clock(clk),
+        .reset(reset),
+        .read_enable(0), //input that fetcher send
+        .write_enable(1),
+        .address(alu_result), // input that fetcher sends
+        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000)
+        .send_complete(0)//todo - fix this
+
+        .m_axi_arready(m_axi_arready),
+        .m_axi_rvalid(m_axi_rvalid),
+        .m_axi_rlast(m_axi_rlast),
+        .m_axi_rdata(m_axi_rdata),
+        .m_axi_arvalid(m_axi_arvalid),
+        .m_axi_araddr(m_axi_araddr),
+        .m_axi_arlen(m_axi_arlen),
+        .m_axi_arsize(m_axi_arsize),
+        .m_axi_rready(m_axi_rready),
+
+        .data(instruction_out),
+        .send_enable(cache_result_ready),
+    );  
 
     always_comb begin
         if (reset) begin
