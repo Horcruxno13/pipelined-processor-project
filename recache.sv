@@ -1,4 +1,4 @@
-module cache #(
+module recache #(
     parameter cache_line_size = 64,           // Size of each cache line in bytes
     parameter cache_lines = 4,              // Total number of cache lines
     parameter sets = 64,                      // Number of sets in the cache
@@ -25,11 +25,12 @@ module cache #(
     output logic [63:0] m_axi_araddr,         // Read address output to AXI
     output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
     output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic [1:0] m_axi_arburst,
     output logic m_axi_rready,                // Ready to accept data from AXI
 
     // Data output and control signals
     output logic [63:0] data,                 // Data output to CPU
-    output logic send_enable,                 // Indicates data is ready to send
+    output logic send_enable                 // Indicates data is ready to send
     //output logic read_complete                // Indicates the read operation is complete
 );
 
@@ -72,14 +73,19 @@ logic send_enable_next;
 logic data_retrieved_next;
 
 // Control signals and variables
-logic cache_hit;
-logic [31:0] data_out;
+// logic cache_hit;
+// logic [31:0] data_out;
 logic [31:0] cache_memory [0:15];  // Simplified cache array for demonstration
 logic [7:0]  m_axi_arlen;          // Number of transfers in burst
 logic        m_axi_arvalid;        // Memory request signal
 logic        m_axi_rready;         // Memory ready to receive data
 logic        m_axi_rvalid;         // Memory response valid signal
 logic [31:0] memory_data;          // Data from memory
+
+logic [63:0] modified_address;
+integer empty_way;
+
+logic [2:0] data_size_temp = 4; 
 
 // State register update (sequential block)
 always_ff @(posedge clock) begin
@@ -163,7 +169,7 @@ always_comb begin
 
         STORE_DATA: begin
             // Return to IDLE_HIT after storing data
-            next_state = (send_complete && !send_enable) IDLE_HIT : STORE_DATA;
+            next_state = (send_complete && !send_enable) ? IDLE_HIT : STORE_DATA;
         end
 
         default: next_state = IDLE_HIT;
@@ -183,7 +189,7 @@ always_comb begin
                 for (int i = 0; i < ways; i++) begin
                     if (tags[set_index][i] == tag) begin  // Check for tag match
                         cache_hit = 1;   // Cache hit
-                        data_out = cache_data[set_index][i][block_offset * data_size +: data_size];
+                        // data_out = cache_data[set_index][i][block_offset * data_size_temp +: data_size_temp];
                     end
                 end
                 check_done = 1;
@@ -206,7 +212,7 @@ always_comb begin
                 for (int i = 0; i < ways; i++) begin
                     if (tags[set_index][i] == tag) begin  // Check for tag match
                         cache_hit = 1;   // Cache hit
-                        data_out = cache_data[set_index][i][block_offset * data_size +: data_size];
+                        // data_out = cache_data[set_index][i][block_offset * data_size_temp +: data_size_temp];
                     end
                 end
                 check_done = 1;
@@ -247,7 +253,8 @@ always_comb begin
         STORE_DATA: begin
             set_index = modified_address[block_offset_width + set_index_width - 1 : block_offset_width];
             tag = modified_address[addr_width-1 : addr_width - tag_width];
-            int empty_way = -1;
+            
+            empty_way = -1;
             for (int w = 0; w < ways; w++) begin
                 if (!valid_bits[set_index][w]) begin
                 empty_way = w;
@@ -264,7 +271,8 @@ always_comb begin
                                                     buffer_array[3], buffer_array[2], buffer_array[1], buffer_array[0]};
                 valid_bits[set_index][empty_way] = 1;
             end
-            data_out = cache_data[set_index][i][block_offset * data_size +: data_size];
+            // TODO: TEMPORARY FIX
+            // data_out = cache_data[set_index][empty_way][block_offset * data_size_temp +: data_size_temp]; 
             send_enable = 1;
             if (send_complete) begin
                 send_enable = 0;

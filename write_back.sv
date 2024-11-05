@@ -1,3 +1,4 @@
+`include "control_signals_struct.svh"
 /* module InstructionWriteBack (
     input  logic        clk,                          // Clock signal
     input  logic        reset,                        // Active-low reset
@@ -10,7 +11,7 @@
 );
 endmodule */
 
-module write_back 
+module InstructionWriteBack 
 #()
 (
     input logic clk,
@@ -23,9 +24,8 @@ module write_back
 
     output [31:0] write_data, //todo - write back is a neater name here
     output [4:0] write_reg,
-    output write_enable
-
-    alwyas
+    output write_enable,
+    output write_back_done
 );
     always_comb begin
         if (reset) begin
@@ -34,12 +34,12 @@ module write_back
             write_enable = 0;
         end else if (write_back_enable) begin
             // Jump, Store, Branch => Nothing happens
-            if (opcode == 7'b0100011 ||          // S-Type Store
-                opcode == 7'b1100011 ||          // B-Type Branch
-                opcode == 7'b1101111 ||          // JAL J-Type Jump
-                opcode == 7'b1100111 ||          // I-Type JALR
-                opcode == 7'b0001111 ||          // FENCE (I-Type)
-                opcode == 7'b1110011) begin      // System Instructions
+            if (control_signals.opcode == 7'b0100011 ||          // S-Type Store
+                control_signals.opcode == 7'b1100011 ||          // B-Type Branch
+                control_signals.opcode == 7'b1101111 ||          // JAL J-Type Jump
+                control_signals.opcode == 7'b1100111 ||          // I-Type JALR
+                control_signals.opcode == 7'b0001111 ||          // FENCE (I-Type)
+                control_signals.opcode == 7'b1110011) begin      // System Instructions
                 write_data = 0;
                 write_reg = 0;
                 write_enable = 0;
@@ -48,14 +48,14 @@ module write_back
                 write_enable = 1;
                 write_reg = control_signals.dest_reg;
                 // Write back from ALU
-                if ((opcode == 7'b0110011) ||                // R-Type ALU instructions
-                    (opcode == 7'b0111011) ||                // R-Type with multiplication
-                    (opcode == 7'b0010011) ||                // I-Type ALU (immediate) instructions
-                    (opcode == 7'b0011011) ||                // I-Type ALU (immediate, 32M)
-                    (opcode == 7'b0010111)) begin            // AUIPC (U-Type)
+                if ((control_signals.opcode == 7'b0110011) ||                // R-Type ALU instructions
+                    (control_signals.opcode == 7'b0111011) ||                // R-Type with multiplication
+                    (control_signals.opcode == 7'b0010011) ||                // I-Type ALU (immediate) instructions
+                    (control_signals.opcode == 7'b0011011) ||                // I-Type ALU (immediate, 32M)
+                    (control_signals.opcode == 7'b0010111)) begin            // AUIPC (U-Type)
                     write_data = alu_result;
-                end else if ((opcode == 7'b0000011) ||       // I-Type Load
-                             (opcode == 7'b0110111)) begin   // LUI (U-Type)
+                end else if ((control_signals.opcode == 7'b0000011) ||       // I-Type Load
+                             (control_signals.opcode == 7'b0110111)) begin   // LUI (U-Type)
                     // Write back from data load
                     write_data = loaded_data;
                 end

@@ -1,3 +1,6 @@
+`ifndef CONTROL_SIGNALS_STRUCT_SVH
+`define CONTROL_SIGNALS_STRUCT_SVH
+
 typedef struct packed {
     logic [63:0] imm;
     logic [6:0] opcode;
@@ -6,3 +9,5 @@ typedef struct packed {
     logic memory_access;
     logic [4:0] dest_reg;
 } control_signals_struct;
+
+`endif

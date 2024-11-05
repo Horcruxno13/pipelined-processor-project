@@ -310,10 +310,10 @@ module InstructionDecoder (
 
                         default: instruction_type = 8'b11111111; // Unknown Instruction
                     endcase
-                    control_signals_out.imm <= imm;
-                    control_signals_out.opcode <= opcode;
-                    control_signals_out.shamt <= shamt;
-                    control_signals_out.instruction <= instruction_type;
+                    control_signals_out.imm = imm;
+                    control_signals_out.opcode = opcode;
+                    control_signals_out.shamt = shamt;
+                    control_signals_out.instruction = instruction_type;
                     if (opcode == 7'b0000011 || opcode == 7'b0100011) begin
                         control_signals_out.memory_access = 1;
                     end else begin

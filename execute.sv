@@ -25,19 +25,18 @@ module InstructionExecutor (
         .result(alu_data_out)
     );
 
-    logic 
 
     always_comb begin
         if (reset) begin
-            reg_b_data_out = 64'b0;
+            // reg_b_data_out = 64'b0;
             alu_data_out = 64'b0;
             pc_I_offset_out = 64'b0;
             execute_done = 0;
         end else if (execute_enable) begin
             if (
-                opcode == 7'b1100011 ||          // B-Type Branch
-                opcode == 7'b1101111 ||          // JAL J-Type Jump
-                opcode == 7'b1100111)            // I-Type JALR
+                control_signals.opcode == 7'b1100011 ||          // B-Type Branch
+                control_signals.opcode == 7'b1101111 ||          // JAL J-Type Jump
+                control_signals.opcode == 7'b1100111)            // I-Type JALR
             begin
                 // do pc manipulation
                 pc_I_offset_out = pc_current + control_signals.imm; // TODO:include relative and abs calc
@@ -50,7 +49,7 @@ module InstructionExecutor (
             end
             execute_done = 1;
         end else begin
-            reg_b_data_out = 64'b0;
+            // reg_b_data_out = 64'b0;
             alu_data_out = 64'b0;
             pc_I_offset_out = 64'b0;
             execute_done = 0;

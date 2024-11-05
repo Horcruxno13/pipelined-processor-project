@@ -1,6 +1,9 @@
+`include "recache.sv"
+
 module InstructionFetcher (
     input  logic        clk,                // Clock signal
     input  logic        reset,            // Active-low reset 
+    input  logic        fetch_enable,
     input  logic [63:0] pc_current,         // Current PC value (64 bits)
     input  logic [63:0] target_address,     // Target address for branches/jumps (64 bits)
     input  logic        select_target,      // Control signal for address selection
@@ -17,6 +20,7 @@ module InstructionFetcher (
     output logic [63:0] m_axi_araddr,         // Read address output to AXI
     output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
     output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic [1:0] m_axi_arburst,
     output logic m_axi_rready                // Ready to accept data from AXI
 );
 
@@ -68,14 +72,14 @@ module recache (
  */
 
 
-    cache instruction_cache (
+    recache instruction_cache (
         .clock(clk),
         .reset(reset),
         .read_enable(cache_request_ready), //input that fetcher send
         .write_enable(0),
         .address(cache_request_address), // input that fetcher sends
-        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000)
-        .send_complete(1)
+        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
+        .send_complete(1),
 
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
@@ -86,9 +90,9 @@ module recache (
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
         .m_axi_rready(m_axi_rready),
-
+        .m_axi_arburst(m_axi_arburst),
         .data(instruction_out),
-        .send_enable(cache_result_ready),
+        .send_enable(cache_result_ready)
     );  
 
 
@@ -135,7 +139,7 @@ end */
 // No states
 always_comb begin
     if (reset) begin
-        fetcher_done = 0
+        fetcher_done = 0;
         cache_request_address  = 64'b0;
         cache_request_ready = 0;
     end else begin

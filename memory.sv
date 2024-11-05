@@ -7,7 +7,7 @@ module InstructionMemoryHandler (
     input  control_signals_struct control_signals, //todo = change the type      // Control Signals
     input logic memory_enable,
     output logic [63:0] loaded_data_out,
-    output logic        memory_done               // Ready signal indicating fetch completion
+    output logic        memory_done,            // Ready signal indicating fetch completion
     // AXI interface inputs for read transactions
     input logic m_axi_arready,                // Ready signal from AXI for read address
     input logic m_axi_rvalid,                 // Data valid signal from AXI read data channel
@@ -18,8 +18,11 @@ module InstructionMemoryHandler (
     output logic [63:0] m_axi_araddr,         // Read address output to AXI
     output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
     output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
+    output logic [1:0] m_axi_arburst,
     output logic m_axi_rready                // Ready to accept data from AXI
 );
+
+logic cache_request_ready;
 
 /*     cache data_cache (
         .clock(clk),
@@ -36,14 +39,14 @@ module InstructionMemoryHandler (
     );  */
 
 
-    cache instruction_cache (
+    recache instruction_cache (
         .clock(clk),
         .reset(reset),
         .read_enable(0), //input that fetcher send
         .write_enable(1),
         .address(alu_result), // input that fetcher sends
-        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000)
-        .send_complete(0)//todo - fix this
+        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
+        .send_complete(0),//todo - fix this
 
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
@@ -54,9 +57,9 @@ module InstructionMemoryHandler (
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
         .m_axi_rready(m_axi_rready),
-
+        .m_axi_arburst(m_axi_arburst),
         .data(instruction_out),
-        .send_enable(cache_result_ready),
+        .send_enable(cache_result_ready)
     );  
 
     always_comb begin

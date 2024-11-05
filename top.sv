@@ -1,9 +1,13 @@
 `include "Sysbus.defs"
 `include "fetcher.sv"
-`include "pipeline_register.sv"
+// `include "pipeline_register.sv"
 `include "pipeline_reg_struct.svh"
 `include "write_back.sv"
+`include "decoder.sv"
+`include "execute.sv"
+`include "memory.sv"
 `include "control_signals_struct.svh"
+
 
 module top
 #(
@@ -71,6 +75,11 @@ logic [63:0] target_address;
 logic initial_selector;
 
 // Initialise Register
+
+
+logic [63:0] register [31:0];
+
+
 register_file registerFile(
     .clk(clk),
     .reset(reset),
@@ -86,7 +95,7 @@ register_file registerFile(
 );
 
 // Assign initial PC value from entry point
-assign [63:0] initial_pc = entry;
+assign initial_pc = entry;
 assign target_address = 0;
 assign mux_selector = 0;
 
@@ -134,6 +143,7 @@ assign mux_selector = 0;
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
         .m_axi_rready(m_axi_rready),
+        .m_axi_arburst(m_axi_arburst),
         .fetcher_done(fetcher_done)
     );
 
@@ -162,17 +172,16 @@ assign mux_selector = 0;
     logic id_ex_valid_reg;
     logic [63:0] id_ex_reg_a_data, id_ex_reg_a_addr;
     logic [63:0] id_ex_reg_b_data, id_ex_reg_b_addr;
-    logic [63:0] id_ex_pc_plus_I_reg, id_ex_pc_plus_I_reg_next;
-    logic control_signals_struct id_ex_control_signal_struct, id_ex_control_signal_struct_next;
+    logic [63:0] id_ex_pc_plus_I_reg;
+    control_signals_struct id_ex_control_signal_struct, id_ex_control_signal_struct_next;
+    logic register_values_ready;
 
     InstructionDecoder instructionDecoder (
         .clk(clk),
         .instruction(if_id_instruction_reg),
-        .pc_current(if_id_pc_plus_i_reg),
-        .decode_enable(if_id_valid_reg)
-        .reg_a_out(id_ex_reg_a_reg_next),      // Example output: reg_a
-        .reg_b_out(id_ex_reg_b_reg_next),      // Example output: reg_b
-        .pc_plus_I_out(id_ex_pc_plus_I_reg_next), // Example output: PC + 1
+        .decode_enable(if_id_valid_reg),
+        .rs1(id_ex_reg_a_addr),      // Example output: reg_a
+        .rs2(id_ex_reg_b_addr),      // Example output: reg_b
         .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
         .decode_complete(decode_done)
     );
@@ -180,10 +189,9 @@ assign mux_selector = 0;
     // ID/EX Pipeline Register Logic (between Decode and Execute stages)
     always_ff @(posedge clk) begin
         if (reset) begin
-            id_ex_pc_plus_1_reg <= 64'b0;
-            id_ex_reg_a_reg <= 64'b0;
-            id_ex_reg_b_reg <= 64'b0;
-            id_ex_imm_reg <= 64'b0;
+            id_ex_pc_plus_I_reg <= 64'b0;
+            id_ex_reg_a_data <= 64'b0;
+            id_ex_reg_b_data <= 64'b0;
             id_ex_valid_reg <= 1'b0;
             id_ex_control_signal_struct.imm <= 64'b0;
             id_ex_control_signal_struct.shamt <= 64'b0;
@@ -193,9 +201,8 @@ assign mux_selector = 0;
         end else begin
             if (decode_done && decode_enable) begin
                 // Load fetched instruction into ID/EX pipeline registers
-                id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
+                id_ex_pc_plus_I_reg <= if_id_pc_plus_i_reg;
                 id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
-                id_ex_imm_reg <= id_ex_imm_reg_next;
                 // pass to reg
                 read_addr1 <= id_ex_reg_a_addr;
                 read_addr2 <= id_ex_reg_b_addr;
@@ -225,7 +232,7 @@ assign mux_selector = 0;
     logic [63:0] ex_mem_pc_plus_I_offset_reg, ex_mem_pc_plus_I_offset_reg_next;
     logic [63:0] ex_mem_alu_data, ex_mem_alu_data_next;
     logic [63:0] ex_mem_reg_b_data;
-    logic control_signals_struct ex_mem_control_signal_struct;
+    control_signals_struct ex_mem_control_signal_struct;
 
     InstructionExecutor instructionExecutor (
         .clk(clk),
@@ -238,8 +245,7 @@ assign mux_selector = 0;
         .alu_data_out(ex_mem_alu_data_next),
         .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
         .jump_enable(jump_signal_next),
-        .execute_done(execute_done),
-        
+        .execute_done(execute_done)
     );
 
     // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
@@ -259,7 +265,7 @@ assign mux_selector = 0;
                 // Load decoded instruction into EX/MEM pipeline registers
                 ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
                 ex_mem_alu_data <= ex_mem_alu_data_next;
-                ex_mem_reg_b_data <= id_ex_reg_b_reg;
+                ex_mem_reg_b_data <= id_ex_reg_b_data;
                 ex_mem_control_signal_struct <= id_ex_control_signal_struct;
                 ex_mem_jump_signal <= ex_mem_jump_signal_next;
                 ex_mem_valid_reg <= 1;
@@ -276,7 +282,7 @@ assign mux_selector = 0;
     logic [63:0] mem_wb_loaded_data, mem_wb_loaded_data_next;
     logic [63:0] mem_wb_target_address;
     logic mem_wb_jump_enable_signal;
-    logic control_signals_struct mem_wb_control_signals_reg;
+    control_signals_struct mem_wb_control_signals_reg;
     logic [63:0] mem_wb_alu_data;
     logic mem_wb_valid_reg;
 
@@ -298,7 +304,8 @@ assign mux_selector = 0;
         .m_axi_araddr(m_axi_araddr),
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
-        .m_axi_rready(m_axi_rready),
+        .m_axi_arburst(m_axi_arburst),
+        .m_axi_rready(m_axi_rready)
     );
 
     // assign memory_ready = ~ex_mem_imm_reg;
@@ -334,7 +341,7 @@ assign mux_selector = 0;
     logic [63:0] wb_dest_reg_out;
     logic [63:0] wb_data_out;
 
-    InstructionWriteBack instructionMemoryHandler (
+    InstructionWriteBack instructionWriteBack (
         .clk(clk),
         .reset(reset),
         .loaded_data(mem_wb_loaded_data),
@@ -357,8 +364,8 @@ assign mux_selector = 0;
                 read_addr1 <= 0;
                 read_addr2 <= 0;
                 write_enable <= wb_write_enable;
-                write_addr <= wb_dest_reg_out_next;
-                write_data <= wb_data_out_next;                
+                write_addr <= wb_dest_reg_out;
+                write_data <= wb_data_out;                
             end
         end
     end
