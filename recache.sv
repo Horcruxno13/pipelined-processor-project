@@ -92,12 +92,9 @@ always_ff @(posedge clock) begin
     if (reset) begin
         // Initialize state and relevant variables
         current_state <= IDLE_HIT;
-        data_out <= 0;
-        check_done <= 0;
-        cache_hit <= 0;
-        send_enable <= 0;
-        m_axi_arvalid <= 0;
-        m_axi_rready <= 0;
+
+        
+
         buffer_pointer <= 0;
         burst_counter <= 0;
 
@@ -179,6 +176,14 @@ end
 // Output Logic (combinational block)
 always_comb begin
     // Initialize default values for control signals
+    if (reset) begin
+        data_out = 0;
+        check_done = 0;
+        cache_hit = 0;
+        m_axi_arvalid = 0;
+        m_axi_rready = 0;
+        send_enable = 0;
+    end 
     case (current_state)
         IDLE_HIT: begin
             if (read_enable && !check_done) begin
