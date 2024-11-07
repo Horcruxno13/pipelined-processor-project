@@ -25,10 +25,10 @@ module InstructionFetcher (
 );
 
 // Internal wires and registers (if needed)
-logic [63:0] selected_address;
+logic [63:0] cache_request_address;
 logic cache_request_ready;
 logic [63:0] cache_result;
-logic cache_miss_occurred;
+logic cache_miss_occurred;//todo - probably don't need this
 
 /*  STATE DEFINITION SIGNALS
    enum {
@@ -79,7 +79,7 @@ module recache (
         .write_enable(0),
         .address(cache_request_address), // input that fetcher sends
         .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
-        .send_complete(1),
+        .send_complete(0),
 
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
@@ -143,7 +143,7 @@ always_comb begin
         cache_request_address  = 64'b0;
         cache_request_ready = 0;
     end else begin
-        cache_request_address = select_target ? target_address : pc_current + 4;  // todo: relative vs absolute
+        cache_request_address = select_target ? target_address : pc_current;  // todo: relative vs absolute
         cache_request_ready = 1;
         if (cache_result_ready) begin
             fetcher_done = 1;
