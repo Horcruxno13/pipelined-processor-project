@@ -338,8 +338,8 @@ assign mux_selector = 0;
     logic write_back_done, write_back_ready, write_back_enable;
 
     //InstructionWriteBacks's output vars
-    logic [63:0] wb_dest_reg_out;
-    logic [63:0] wb_data_out;
+    logic [63:0] wb_dest_reg_out, wb_dest_reg_out_next;
+    logic [63:0] wb_data_out, wb_data_out_next;
 
     InstructionWriteBack instructionWriteBack (
         .clk(clk),
@@ -347,8 +347,8 @@ assign mux_selector = 0;
         .loaded_data(mem_wb_loaded_data),
         .alu_result(mem_wb_alu_data),
         .control_signals(mem_wb_control_signals_reg),
-        .write_reg(wb_dest_reg_out),
-        .write_data(wb_data_out),
+        .write_reg(wb_dest_reg_out_next),
+        .write_data(wb_data_out_next),
         .write_back_done(write_back_done),
         .write_enable(wb_write_enable),
         .write_back_enable(mem_wb_valid_reg)
@@ -364,8 +364,8 @@ assign mux_selector = 0;
                 read_addr1 <= 0;
                 read_addr2 <= 0;
                 write_enable <= wb_write_enable;
-                write_addr <= wb_dest_reg_out;
-                write_data <= wb_data_out;                
+                write_addr <= wb_dest_reg_out_next;
+                write_data <= wb_data_out_next;                
             end
         end
     end
