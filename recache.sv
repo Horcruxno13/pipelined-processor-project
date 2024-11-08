@@ -45,6 +45,7 @@ enum logic [3:0] {
 
 // Derived parameters
 localparam block_offset_width = $clog2(cache_line_size / data_width);
+// localparam block_offset_width = ;
 localparam set_index_width = $clog2(sets);
 localparam tag_width = addr_width - set_index_width - block_offset_width;
 
@@ -81,7 +82,7 @@ logic data_retrieved_next;
 // Control signals and variables
 // logic cache_hit;
 // logic [31:0] data_out;
-logic [cache_line_size-1:0] cache_memory [sets-1:0][ways-1:0];  // Simplified cache array for demonstration
+// logic [cache_line_size-1:0] cache_memory [sets-1:0][ways-1:0]; 
 logic [7:0]  m_axi_arlen;          // Number of transfers in burst
 logic        m_axi_arvalid;        // Memory request signal
 logic        m_axi_rready;         // Memory ready to receive data
@@ -93,8 +94,10 @@ integer empty_way;
 integer empty_way_next;
 
 logic data_stored;
+
 // logic [:0] data_size_temp = 32;
 integer data_size_temp = 32; 
+integer block_number;
 
 // State register update (sequential block)
 always_ff @(posedge clock) begin
@@ -124,14 +127,14 @@ always_ff @(posedge clock) begin
         end
 
         MEMORY_ACCESS: begin
-            if (m_axi_rvalid) begin
+            if (m_axi_rvalid && m_axi_rready) begin
                 buffer_array[buffer_pointer] <= m_axi_rdata[31:0];
                 buffer_array[buffer_pointer + 1] <= m_axi_rdata[63:32];
                 buffer_pointer <= buffer_pointer + 2;
                 burst_counter <= burst_counter + 1;
                 // TODO : FIX THE BUFFER 1 OVERWRITE
                 // Check if last burst transfer is reached
-                if (m_axi_rlast && (burst_counter == 7)) begin
+                if (m_axi_rlast && (burst_counter == 8)) begin
                     buffer_pointer <= 0;
                     burst_counter <= 0;
                 end
@@ -144,10 +147,16 @@ always_ff @(posedge clock) begin
             if (empty_way_next != -1) begin
                 // Write tag and data into cache
                 tags[set_index_next][empty_way_next] = tag;
-                cache_data[set_index_next][empty_way_next] = {buffer_array[15], buffer_array[14], buffer_array[13], buffer_array[12],
-                                                    buffer_array[11], buffer_array[10], buffer_array[9], buffer_array[8],
-                                                    buffer_array[7], buffer_array[6], buffer_array[5], buffer_array[4],
-                                                    buffer_array[3], buffer_array[2], buffer_array[1], buffer_array[0]};
+                // cache_data[set_index_next][empty_way_next] = {buffer_array[15], buffer_array[14], buffer_array[13], buffer_array[12],
+                //                                     buffer_array[11], buffer_array[10], buffer_array[9], buffer_array[8],
+                //                                     buffer_array[7], buffer_array[6], buffer_array[5], buffer_array[4],
+                //                                     buffer_array[3], buffer_array[2], buffer_array[1], buffer_array[0]};
+                cache_data[set_index_next][empty_way_next] = {buffer_array[0], buffer_array[1], buffer_array[2], buffer_array[3],
+                                                        buffer_array[4], buffer_array[5], buffer_array[6], buffer_array[7],
+                                                        buffer_array[8], buffer_array[9], buffer_array[10], buffer_array[11],
+                                                        buffer_array[12], buffer_array[13], buffer_array[14], buffer_array[15]};
+
+
                 valid_bits[set_index_next][empty_way_next] = 1;
                 data_stored = 1;
             end
@@ -213,11 +222,12 @@ always_comb begin
                 set_index = address[block_offset_width +: set_index_width];
                 tag = address[addr_width-1:addr_width-tag_width];
                 block_offset = address[block_offset_width-1:0];
+                block_number = $clog2(block_offset);
 
                 for (int i = 0; i < ways; i++) begin
-                    if (tags[set_index][i] == tag) begin  // Check for tag match
+                    if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                         cache_hit = 1;   // Cache hit
-                        data_out = cache_data[set_index][i][block_offset * 32 +: 32];
+                        data_out = cache_data[set_index][i][(block_number-1) * 32 +: 32];
                     end
                 end
                 check_done = 1;
@@ -263,10 +273,11 @@ always_comb begin
 
         MEMORY_ACCESS: begin
             current_transfer_value = m_axi_rdata;
-            if (m_axi_rlast) begin
+            if (m_axi_rlast && burst_counter == 0) begin
                 m_axi_rready = 0;
                 data_retrieved_next = 1;
             end
+            empty_way_next = -1;
 
             //todo - make sure that the emptyway next ki value is 0 in this earleir staate
         end
@@ -275,18 +286,19 @@ always_comb begin
             set_index_next = modified_address[block_offset_width + set_index_width - 1 : block_offset_width];
             tag_next = modified_address[addr_width-1 : addr_width - tag_width];
             
-            empty_way_next = -1;
-            for (int w = 0; w < ways; w++) begin
-                if (!valid_bits[set_index_next][w]) begin
-                empty_way_next = w;
-                break;
+            if (empty_way_next == -1) begin
+                for (int w = 0; w < ways; w++) begin
+                    if (!valid_bits[set_index_next][w]) begin
+                        empty_way_next = w;
+                        break;
+                    end
                 end
             end
         end
 
         SEND_DATA: begin
             // TODO: TEMPORARY FIX
-            data_out = cache_data[set_index][empty_way][block_offset +: 32]; 
+            data_out = cache_data[set_index][empty_way][(block_number-1) * 32 +: 32]; 
             send_enable_next = 1;
             if (send_complete) begin
                 send_enable_next = 0;
