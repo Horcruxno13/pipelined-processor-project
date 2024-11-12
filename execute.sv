@@ -39,8 +39,10 @@ module InstructionExecutor (
                 control_signals.opcode == 7'b1100111)            // I-Type JALR
             begin
                 // do pc manipulation
-                pc_I_offset_out = pc_current + control_signals.imm; // TODO:include relative and abs calc
+                pc_I_offset_out = pc_current + control_signals.imm; // TODO: @debo - make 3 separate cases
                 jump_enable = 1;
+                //@debo - see how we can use the ALU output in the cases where it holds the target value
+                //@debo, @angad - understand the cases of PC - absolute, relative or +4 simple
             end else begin
                 // do alu
                 // alu_enable = 1;

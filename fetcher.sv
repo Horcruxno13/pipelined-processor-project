@@ -71,17 +71,19 @@ always_comb begin
     end else begin
         if (fetch_enable) begin // clk 1
             if (
-                !(fetcher_done && !if_id_pipeline_valid)  // case where we are waiting for a latch - HL
+                !(fetcher_done && !if_id_pipeline_valid)  
+                // case where we are waiting for a latch - HL
                 
                 && 
                 
-                !(fetcher_done && if_id_pipeline_valid)  // case where latch is done, but basis that - HH
-                //pc increment karna baaki hai
+                !(fetcher_done && if_id_pipeline_valid)  
+                // case where latch is done -HH
 
                 &&
 
-                !(!fetcher_done && if_id_pipeline_valid)  // case where latch is done, but basis that - HH
-                //pc increment karna baaki hai
+                !(!fetcher_done && if_id_pipeline_valid)  
+                // case where latch is done, but next stage (decoder) is yet to use the values - LH
+                
                 
                 
                 ) begin

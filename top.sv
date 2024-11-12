@@ -100,7 +100,7 @@ assign target_address = 0;
 assign mux_selector = 0;
 
   // Ready/valid handshakes for Fetch, Decode, and Execute stages
-  logic fetcher_done, fetch_ready, fetch_enable = 1;
+  logic fetcher_done, fetch_ready, fetch_enable;
 
    //InstructionFetcher's pipeline register vars
    logic if_id_valid_reg;
@@ -144,6 +144,7 @@ assign mux_selector = 0;
         .m_axi_arsize(m_axi_arsize),
         .m_axi_rready(m_axi_rready),
         .m_axi_arburst(m_axi_arburst),
+        .if_id_pipeline_valid(if_id_valid_reg),
         .fetcher_done(fetcher_done)
     );
 
@@ -153,13 +154,18 @@ assign mux_selector = 0;
             if_id_instruction_reg <= 32'b0;
             if_id_pc_plus_i_reg <= 64'b0;
         end else begin
+
             if (fetcher_done && fetch_enable) begin
                 // Load fetched instruction into IF/ID pipeline registers
                 if_id_instruction_reg <= if_id_instruction_reg_next;
                 if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                 if_id_valid_reg <= 1;
             end else begin 
-                if_id_valid_reg <= 0;
+                if (!fetcher_done && if_id_valid_reg) begin
+                    initial_pc <= initial_pc + 4;
+
+                end
+                
             end
         end
     end
@@ -182,6 +188,7 @@ assign mux_selector = 0;
         .decode_enable(if_id_valid_reg),
         .rs1(id_ex_reg_a_addr),      // Example output: reg_a
         .rs2(id_ex_reg_b_addr),      // Example output: reg_b
+        .register_values_ready(register_values_ready),
         .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
         .decode_complete(decode_done)
     );
@@ -216,9 +223,8 @@ assign mux_selector = 0;
                 id_ex_reg_a_data <= read_data1;
                 id_ex_reg_b_data <= read_data2;
                 register_values_ready <= 1'b0;       // Clear the flag
+                if_id_valid_reg <= 0;
                 id_ex_valid_reg <= 1;
-            end else begin 
-                id_ex_valid_reg <= 0;
             end
         end
     end
@@ -238,7 +244,7 @@ assign mux_selector = 0;
         .clk(clk),
         .reset(reset),
         .execute_enable(id_ex_valid_reg),
-        .pc_current(id_ex_pc_plus_1_reg),
+        .pc_current(id_ex_pc_plus_I_reg),
         .reg_a_contents(id_ex_reg_a_data), 
         .reg_b_contents(id_ex_reg_b_data), 
         .control_signals(id_ex_control_signal_struct),
@@ -269,11 +275,13 @@ assign mux_selector = 0;
                 ex_mem_control_signal_struct <= id_ex_control_signal_struct;
                 ex_mem_jump_signal <= ex_mem_jump_signal_next;
                 ex_mem_valid_reg <= 1;
+                id_ex_valid_reg <= 0;
+            end
             end else begin
-                ex_mem_valid_reg <= 0;
+                ex_mem_valid_reg <= 0; @Debo - fix this also, lost the changes
             end
         end
-    end
+    
 
     // MEMORY STARTS
     logic memory_done, memory_ready, memory_enable;
@@ -321,7 +329,8 @@ assign mux_selector = 0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
         end else begin
-            mem_wb_target_address <= ex_mem_pc_plus_I_offset_reg;
+            mem_wb_target_address <= ex_mem_pc_plus_I_offset_reg;//@DEBO - push these back to fetcher, 
+            //@Debo - need to replace PC with target as we discussed
             mem_wb_jump_enable_signal <= ex_mem_jump_signal;
             if (memory_done && memory_enable) begin
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
@@ -329,7 +338,7 @@ assign mux_selector = 0;
                 mem_wb_alu_data <= ex_mem_alu_data;
                 mem_wb_valid_reg <= 1;
             end else begin
-                mem_wb_valid_reg <= 0;
+                mem_wb_valid_reg <= 0; @Debo - fix this also, lost the changes
             end
         end
     end

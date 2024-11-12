@@ -5,6 +5,7 @@ module InstructionDecoder (
 
     input logic [31:0] instruction,                 // Single 32-bit instruction input
     input logic decode_enable,
+    input logic register_values_ready,
     
     output logic [6:0] opcode,                      // opcode
     output logic [4:0] rd,                          // Destination register
@@ -24,7 +25,16 @@ module InstructionDecoder (
     always_comb begin
         // Extract fields from the instruction
         if (decode_enable) begin
-            if (instruction != 64'b0) begin
+            if (register_values_ready) begin
+                decode_complete = 0;
+                rd = 5'b0;
+                rs1 = 5'b0;
+                rs2 = 5'b0;
+                imm = 64'b0; // Default to zero
+                shamt = 64'b0; // Default to zero
+                instruction_type = 8'b0; // Default to unknown
+                //decode_complete_next = 0;
+            end else if (instruction != 64'b0) begin
                 opcode = instruction[6:0];
                 rd = instruction[11:7];
                 rs1 = instruction[19:15];
@@ -301,12 +311,7 @@ module InstructionDecoder (
                             endcase
                         end
 
-/*                      FENCE (I-Type) Instructions
-                        7'b0001111: begin
-                            pred = instruction[27:24];
-                            succ = instruction[23:20];
-                            instruction_type = 8'd66;  // FENCE (new value)
-                        end */
+
 
                         default: instruction_type = 8'b11111111; // Unknown Instruction
                     endcase
@@ -323,16 +328,8 @@ module InstructionDecoder (
                     if (instruction_type == 8'b11111111) begin
                         $display("CANNOT DETECT TYPE");
                     end
-            end else begin
-                rd = 5'b0;
-                rs1 = 5'b0;
-                rs2 = 5'b0;
-                imm = 64'b0; // Default to zero
-                shamt = 64'b0; // Default to zero
-                instruction_type = 8'b0; // Default to unknown
-                //decode_complete_next = 0;
+                decode_complete = 1;
             end
-            decode_complete = 1;
         end else begin
             rd = 5'b0;
             rs1 = 5'b0;
