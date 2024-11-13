@@ -205,6 +205,7 @@ assign mux_selector = 0;
             id_ex_control_signal_struct.opcode <= 7'b0;
             id_ex_control_signal_struct.instruction <= 8'b0;
             id_ex_control_signal_struct.memory_access <= 0;
+            id_ex_control_signal_struct.jump_signal <= 0;
         end else begin
             if (decode_done && decode_enable) begin
                 // Load fetched instruction into ID/EX pipeline registers
@@ -234,7 +235,6 @@ assign mux_selector = 0;
 
     //InstructionExecutor's pipeline register vars
     logic ex_mem_valid_reg;
-    logic ex_mem_jump_signal, ex_mem_jump_signal_next;
     logic [63:0] ex_mem_pc_plus_I_offset_reg, ex_mem_pc_plus_I_offset_reg_next;
     logic [63:0] ex_mem_alu_data, ex_mem_alu_data_next;
     logic [63:0] ex_mem_reg_b_data;
@@ -250,7 +250,6 @@ assign mux_selector = 0;
         .control_signals(id_ex_control_signal_struct),
         .alu_data_out(ex_mem_alu_data_next),
         .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
-        .jump_enable(jump_signal_next),
         .execute_done(execute_done)
     );
 
@@ -265,22 +264,23 @@ assign mux_selector = 0;
             ex_mem_control_signal_struct.opcode <= 7'b0;
             ex_mem_control_signal_struct.instruction <= 8'b0;
             ex_mem_control_signal_struct.memory_access <= 0;
-            ex_mem_jump_signal <= 0;
+            ex_mem_control_signal_struct.jump_signal <= 0;
         end else begin
             if (execute_done && execute_enable) begin
                 // Load decoded instruction into EX/MEM pipeline registers
                 ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
                 ex_mem_alu_data <= ex_mem_alu_data_next;
+
                 ex_mem_reg_b_data <= id_ex_reg_b_data;
                 ex_mem_control_signal_struct <= id_ex_control_signal_struct;
-                ex_mem_jump_signal <= ex_mem_jump_signal_next;
+
                 ex_mem_valid_reg <= 1;
                 id_ex_valid_reg <= 0;
             end
-            end else begin
-                ex_mem_valid_reg <= 0; @Debo - fix this also, lost the changes
-            end
-        end
+            
+        end 
+            
+    end
     
 
     // MEMORY STARTS
@@ -289,7 +289,6 @@ assign mux_selector = 0;
     //InstructionMemory's pipeline register vars
     logic [63:0] mem_wb_loaded_data, mem_wb_loaded_data_next;
     logic [63:0] mem_wb_target_address;
-    logic mem_wb_jump_enable_signal;
     control_signals_struct mem_wb_control_signals_reg;
     logic [63:0] mem_wb_alu_data;
     logic mem_wb_valid_reg;
@@ -326,19 +325,17 @@ assign mux_selector = 0;
             mem_wb_control_signals_reg.opcode <= 7'b0;
             mem_wb_control_signals_reg.instruction <= 8'b0;
             mem_wb_control_signals_reg.memory_access <= 0;
+            mem_wb_control_signals_reg.jump_signal <= 0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
         end else begin
-            mem_wb_target_address <= ex_mem_pc_plus_I_offset_reg;//@DEBO - push these back to fetcher, 
-            //@Debo - need to replace PC with target as we discussed
-            mem_wb_jump_enable_signal <= ex_mem_jump_signal;
+            mem_wb_target_address <= ex_mem_pc_plus_I_offset_reg;
             if (memory_done && memory_enable) begin
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;
                 mem_wb_alu_data <= ex_mem_alu_data;
                 mem_wb_valid_reg <= 1;
-            end else begin
-                mem_wb_valid_reg <= 0; @Debo - fix this also, lost the changes
+                ex_mem_valid_reg <= 0;
             end
         end
     end
@@ -374,7 +371,8 @@ assign mux_selector = 0;
                 read_addr2 <= 0;
                 write_enable <= wb_write_enable;
                 write_addr <= wb_dest_reg_out_next;
-                write_data <= wb_data_out_next;                
+                write_data <= wb_data_out_next; 
+                mem_wb_valid_reg <= 0;
             end
         end
     end
@@ -473,3 +471,4 @@ assign mux_selector = 0;
     */
   
 endmodule
+

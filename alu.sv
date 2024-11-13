@@ -288,6 +288,26 @@ always_comb begin
 			8'd42: begin // REMUW
 				result = $unsigned(rs1[31:0]) % $unsigned(rs2[31:0]);  
 			end
+
+		// B - Type : check branch conditions
+			8'd47: begin // BEQ
+				result = (rs1_data == rs2_data) ? 64'b1 : 64'b0;
+			end
+			8'd48: begin // BNE
+				result = (rs1_data != rs2_data) ? 64'b1 : 64'b0;
+			end
+			8'd49: begin // BLT
+				result = ($signed(rs1_data) < $signed(rs2_data)) ? 64'b1 : 64'b0;
+			end
+			8'd50: begin // BGE
+				result = ($signed(rs1_data) >= $signed(rs2_data)) ? 64'b1 : 64'b0;
+			end
+			8'd51: begin // BLTU
+				result = (rs1_data < rs2_data) ? 64'b1 : 64'b0;
+			end
+			8'd52: begin // BGEU
+				result = (rs1_data >= rs2_data) ? 64'b1 : 64'b0;
+			end
 		endcase
 	// end
 	end

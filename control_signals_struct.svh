@@ -8,6 +8,7 @@ typedef struct packed {
     logic [7:0] instruction;
     logic memory_access;
     logic [4:0] dest_reg;
+    logic jump_signal;              // Domino to halt everything prev
 } control_signals_struct;
 
 `endif

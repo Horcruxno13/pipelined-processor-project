@@ -12,7 +12,6 @@ module InstructionExecutor (
 
     output logic [63:0] alu_data_out,               // ALU data output
     output logic [63:0] pc_I_offset_out,            // PC value to jump to
-    output logic        jump_enable,                // Domino to halt everything prev
     output logic        execute_done                // Ready signal indicating execute completion
 );
     alu ALU_unit(
@@ -33,21 +32,24 @@ module InstructionExecutor (
             pc_I_offset_out = 64'b0;
             execute_done = 0;
         end else if (execute_enable) begin
-            if (
-                control_signals.opcode == 7'b1100011 ||          // B-Type Branch
-                control_signals.opcode == 7'b1101111 ||          // JAL J-Type Jump
-                control_signals.opcode == 7'b1100111)            // I-Type JALR
-            begin
-                // do pc manipulation
-                pc_I_offset_out = pc_current + control_signals.imm; // TODO: @debo - make 3 separate cases
-                jump_enable = 1;
-                //@debo - see how we can use the ALU output in the cases where it holds the target value
-                //@debo, @angad - understand the cases of PC - absolute, relative or +4 simple
+            if(control_signals.opcode == 7'b1100011) begin                      // B-Type Branch (Conditional Jump)
+                if (alu_data_out == 1) begin  // branch conditions met 
+                    pc_I_offset_out = pc_current + control_signals.imm;
+                    control_signals.jump_signal = 1;
+                end else begin          // not met
+                    pc_I_offset_out = 64'b0;
+                    control_signals.jump_signal = 0;
+                end
+            end else if(control_signals.opcode == 7'b1101111) begin            // JAL J-Type Jump (Unconditional Jump)
+                pc_I_offset_out = pc_current + control_signals.imm;
+                control_signals.jump_signal = 1;
+            end else if (control_signals.opcode == 7'b1100111) begin           // I-Type JALR (Unconditional Jump with rs1)
+                pc_I_offset_out = pc_current + control_signals.imm + reg_a_contents;
+                control_signals.jump_signal = 1;
             end else begin
-                // do alu
-                // alu_enable = 1;
+                // no branches, just alu which always runs in comb
                 pc_I_offset_out = 64'b0;
-                jump_enable = 0;
+                control_signals.jump_signal = 0;
             end
             execute_done = 1;
         end else begin
