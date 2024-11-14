@@ -95,9 +95,6 @@ register_file registerFile(
 );
 
 // Assign initial PC value from entry point
-assign initial_pc = entry;
-assign target_address = 0;
-assign mux_selector = 0;
 
   // Ready/valid handshakes for Fetch, Decode, and Execute stages
   logic fetcher_done, fetch_ready, fetch_enable;
@@ -153,6 +150,10 @@ assign mux_selector = 0;
         if (reset) begin
             if_id_instruction_reg <= 32'b0;
             if_id_pc_plus_i_reg <= 64'b0;
+            initial_pc <= entry;
+            target_address <= 0;
+            mux_selector <= 0;
+            fetch_enable <= 1;
         end else begin
 
             if (fetcher_done && fetch_enable) begin
@@ -163,6 +164,7 @@ assign mux_selector = 0;
             end else begin 
                 if (!fetcher_done && if_id_valid_reg) begin
                     initial_pc <= initial_pc + 4;
+                    // $display("Incremented PC to %d", initial_pc);
 
                 end
                 
@@ -218,13 +220,13 @@ assign mux_selector = 0;
                 write_addr <= 0;
                 write_data <= 0;
                 write_complete <= 0;
+                if_id_valid_reg <= 0;
                 register_values_ready <= 1'b1;       // Signal next cycle to read data
             end else if (register_values_ready) begin
                 // Step 2: Latch register file output values to pipeline registers
                 id_ex_reg_a_data <= read_data1;
                 id_ex_reg_b_data <= read_data2;
                 register_values_ready <= 1'b0;       // Clear the flag
-                if_id_valid_reg <= 0;
                 id_ex_valid_reg <= 1;
             end
         end
@@ -238,7 +240,7 @@ assign mux_selector = 0;
     logic [63:0] ex_mem_pc_plus_I_offset_reg, ex_mem_pc_plus_I_offset_reg_next;
     logic [63:0] ex_mem_alu_data, ex_mem_alu_data_next;
     logic [63:0] ex_mem_reg_b_data;
-    control_signals_struct ex_mem_control_signal_struct;
+    control_signals_struct ex_mem_control_signal_struct_next, ex_mem_control_signal_struct;
 
     InstructionExecutor instructionExecutor (
         .clk(clk),
@@ -250,6 +252,7 @@ assign mux_selector = 0;
         .control_signals(id_ex_control_signal_struct),
         .alu_data_out(ex_mem_alu_data_next),
         .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
+        .control_signals_out(ex_mem_control_signal_struct_next),
         .execute_done(execute_done)
     );
 
@@ -272,7 +275,7 @@ assign mux_selector = 0;
                 ex_mem_alu_data <= ex_mem_alu_data_next;
 
                 ex_mem_reg_b_data <= id_ex_reg_b_data;
-                ex_mem_control_signal_struct <= id_ex_control_signal_struct;
+                ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
 
                 ex_mem_valid_reg <= 1;
                 id_ex_valid_reg <= 0;
@@ -288,7 +291,6 @@ assign mux_selector = 0;
 
     //InstructionMemory's pipeline register vars
     logic [63:0] mem_wb_loaded_data, mem_wb_loaded_data_next;
-    logic [63:0] mem_wb_target_address;
     control_signals_struct mem_wb_control_signals_reg;
     logic [63:0] mem_wb_alu_data;
     logic mem_wb_valid_reg;
@@ -319,7 +321,6 @@ assign mux_selector = 0;
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            mem_wb_target_address <= 64'b0;
             mem_wb_control_signals_reg.imm <= 64'b0;
             mem_wb_control_signals_reg.shamt <= 64'b0;
             mem_wb_control_signals_reg.opcode <= 7'b0;
@@ -329,7 +330,8 @@ assign mux_selector = 0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
         end else begin
-            mem_wb_target_address <= ex_mem_pc_plus_I_offset_reg;
+            target_address <= ex_mem_pc_plus_I_offset_reg;
+            mux_selector <= ex_mem_control_signal_struct.jump_signal;
             if (memory_done && memory_enable) begin
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;

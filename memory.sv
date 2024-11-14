@@ -46,7 +46,7 @@ logic cache_request_ready;
         .write_enable(1),
         .address(alu_result), // input that fetcher sends
         .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
-        .send_complete(0),//todo - fix this
+        // .send_complete(0),//todo - fix this
 
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
@@ -58,7 +58,7 @@ logic cache_request_ready;
         .m_axi_arsize(m_axi_arsize),
         .m_axi_rready(m_axi_rready),
         .m_axi_arburst(m_axi_arburst),
-        .data(instruction_out),
+        .data_out(instruction_out),
         .send_enable(cache_result_ready)
     );  
 

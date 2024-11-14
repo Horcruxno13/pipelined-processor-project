@@ -29,7 +29,7 @@ module recache #(
     output logic m_axi_rready,                // Ready to accept data from AXI
 
     // Data output and control signals
-    output logic [63:0] data,                 // Data output to CPU
+    output logic [31:0] data_out,                 // Data output to CPU
     output logic send_enable                 // Indicates data is ready to send
     //output logic read_complete                // Indicates the read operation is complete
 );
@@ -296,7 +296,7 @@ always_comb begin
             send_enable_next = 1;
             if (!read_enable) begin
                 send_enable_next = 0;
-                data_out = 0;
+                // data_out = 0;
                 check_done = 0;
             end
         end 

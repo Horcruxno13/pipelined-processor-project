@@ -43,7 +43,7 @@ logic cache_miss_occurred;
         .write_enable(0),
         .address(cache_request_address), // input that fetcher sends
         .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
-        .send_complete(0),
+        // .send_complete(0),
 
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
@@ -55,7 +55,7 @@ logic cache_miss_occurred;
         .m_axi_arsize(m_axi_arsize),
         .m_axi_rready(m_axi_rready),
         .m_axi_arburst(m_axi_arburst),
-        .data(instruction_out),
+        .data_out(instruction_out),
         .send_enable(cache_result_ready)
     );  
 
@@ -87,7 +87,8 @@ always_comb begin
                 
                 
                 ) begin
-                cache_request_address = select_target ? target_address : pc_current;  // todo: relative vs absolute
+                cache_request_address = select_target ? target_address : pc_current;
+                address_out = cache_request_address;
                 cache_request_ready = 1;
             end
 
