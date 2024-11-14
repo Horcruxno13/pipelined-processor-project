@@ -9,9 +9,8 @@ module recache #(
     input logic clock,
     input logic reset,
     input logic read_enable,                  // Signal to trigger a cache read
-    input logic write_enable,                 // Signal to trigger a cache write
     input logic [63:0] address,               // Address to read/write from/to cache
-    input logic [2:0] data_size,              // Size of data requested (in bytes)
+    // input logic [2:0] data_size,              // Size of data requested (in bytes)
     // input logic send_complete,                // Indicates data transfer is complete
 
     // AXI interface inputs for read transactions
@@ -95,7 +94,6 @@ integer empty_way_next;
 
 logic data_stored;
 
-// logic [:0] data_size_temp = 32;
 integer data_size_temp = 32; 
 integer block_number;
 
@@ -132,8 +130,7 @@ always_ff @(posedge clock) begin
                 buffer_array[buffer_pointer + 1] <= m_axi_rdata[63:32];
                 buffer_pointer <= buffer_pointer + 2;
                 burst_counter <= burst_counter + 1;
-                // TODO : FIX THE BUFFER 1 OVERWRITE
-                // Check if last burst transfer is reached
+
                 if (m_axi_rlast && (burst_counter == 8)) begin
                     buffer_pointer <= 0;
                     burst_counter <= 0;
@@ -234,21 +231,7 @@ always_comb begin
                 cache_hit = 0;
                 data_out = 0;
                 send_enable_next = 0;
-            end
-
-            // if (write_enable && !check_done) begin
-            //     set_index = address[block_offset_width +: set_index_width];
-            //     tag = address[addr_width-1:addr_width-tag_width];
-            //     block_offset = address[block_offset_width-1:0];
-
-            //     for (int i = 0; i < ways; i++) begin
-            //         if (tags[set_index][i] == tag) begin  // Check for tag match
-            //             cache_hit = 1;   // Cache hit
-            //             // data_out = cache_data[set_index][i][block_offset * data_size_temp +: data_size_temp];
-            //         end
-            //     end
-            //     check_done = 1;
-            // end            
+            end          
         end
 
         MISS_REQUEST: begin
