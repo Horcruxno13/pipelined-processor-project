@@ -229,7 +229,7 @@ always_comb begin
             if (!read_enable) begin
                 check_done = 0;
                 cache_hit = 0;
-                data_out = 0;
+                // data_out = 0;
                 send_enable_next = 0;
             end          
         end
