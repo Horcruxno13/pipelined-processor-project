@@ -97,7 +97,7 @@ register_file registerFile(
 // Assign initial PC value from entry point
 
   // Ready/valid handshakes for Fetch, Decode, and Execute stages
-  logic fetcher_done, fetch_ready, fetch_enable;
+  logic fetcher_done, fetch_enable;
 
    //InstructionFetcher's pipeline register vars
    logic if_id_valid_reg;
@@ -130,7 +130,7 @@ register_file registerFile(
         .target_address(target_address),
         .select_target(mux_selector),
         .instruction_out(if_id_instruction_reg_next),
-        .address_out(if_id_pc_plus_i_reg_next),
+        .cache_request_address(if_id_pc_plus_i_reg_next),
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
         .m_axi_rlast(m_axi_rlast),
@@ -186,6 +186,7 @@ register_file registerFile(
 
     InstructionDecoder instructionDecoder (
         .clk(clk),
+        .reset(reset),
         .instruction(if_id_instruction_reg),
         .decode_enable(if_id_valid_reg),
         .rs1(id_ex_reg_a_addr),      // Example output: reg_a

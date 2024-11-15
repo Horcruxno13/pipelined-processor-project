@@ -12,7 +12,7 @@ module InstructionFetcher (
 
 
     output logic [63:0] instruction_out,    // Instruction bits fetched from cache (64 bits)
-    output logic [63:0] address_out,        // Address used for fetching (64 bits)
+    output logic [63:0] cache_request_address,        // Address used for fetching (64 bits)
     output logic        fetcher_done,               // Ready signal indicating fetch completion
     // AXI interface inputs for read transactions
     input logic m_axi_arready,                // Ready signal from AXI for read address
@@ -30,7 +30,6 @@ module InstructionFetcher (
 );
 
 // Internal wires and registers (if needed)
-logic [63:0] cache_request_address;
 logic cache_request_ready;
 logic [63:0] cache_result;
 logic cache_miss_occurred;
@@ -84,7 +83,6 @@ always_comb begin
                 
                 ) begin
                 cache_request_address = select_target ? target_address : pc_current;
-                address_out = cache_request_address;
                 cache_request_ready = 1;
             end
 

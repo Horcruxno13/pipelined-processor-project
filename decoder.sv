@@ -1,7 +1,7 @@
 // decoder.v
 module InstructionDecoder (
     input logic clk,
-    // input logic reset, 
+    input logic reset, 
 
     input logic [31:0] instruction,                 // Single 32-bit instruction input
     input logic decode_enable,
@@ -25,7 +25,7 @@ module InstructionDecoder (
     always_comb begin
         // Extract fields from the instruction
         if (decode_enable) begin
-            if (register_values_ready) begin
+            if (reset) begin
                 decode_complete = 0;
                 rd = 5'b0;
                 rs1 = 5'b0;
@@ -36,11 +36,11 @@ module InstructionDecoder (
                 //decode_complete_next = 0;
             end else if (instruction != 64'b0) begin
                 opcode = instruction[6:0];
-                rd = instruction[11:7];
-                rs1 = instruction[19:15];
-                rs2 = instruction[24:20];
-                funct3 = instruction[14:12];
-                funct7 = instruction[31:25];
+                rd = 5'b0;
+                rs1 = 5'b0;
+                rs2 = 5'b0;
+                funct3 = 3'b0;
+                funct7 = 7'b0;
                 imm = 64'b0; // Default to zero
                 shamt = 64'b0; // Default to zero
                 instruction_type = 8'b11111111; // Default to unknown
@@ -324,7 +324,8 @@ module InstructionDecoder (
                     end else begin
                         control_signals_out.memory_access = 0;
                     end
-                    
+                    control_signals_out.dest_reg = rd;
+                
                     if (instruction_type == 8'b11111111) begin
                         $display("CANNOT DETECT TYPE");
                     end
