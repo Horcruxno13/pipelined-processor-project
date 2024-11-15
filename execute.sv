@@ -57,6 +57,7 @@ module InstructionExecutor (
             control_signals_out.opcode = control_signals.opcode;
             control_signals_out.instruction = control_signals.instruction;
             control_signals_out.memory_access = control_signals.memory_access;
+            control_signals_out.dest_reg = control_signals.dest_reg;
             execute_done = 1;
         end else begin
             // reg_b_data_out = 64'b0;

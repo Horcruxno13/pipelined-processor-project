@@ -174,7 +174,7 @@ register_file registerFile(
 
 
     // DECODER STARTS
-    logic decode_done, decode_ready, decode_enable = 1;
+    logic decode_done, decode_ready, decode_enable;
 
     //InstructionDecoder's pipeline register vars
     logic id_ex_valid_reg;
@@ -209,6 +209,7 @@ register_file registerFile(
             id_ex_control_signal_struct.instruction <= 8'b0;
             id_ex_control_signal_struct.memory_access <= 0;
             id_ex_control_signal_struct.jump_signal <= 0;
+            decode_enable <= 1;
         end else begin
             if (decode_done && decode_enable) begin
                 // Load fetched instruction into ID/EX pipeline registers
@@ -269,6 +270,7 @@ register_file registerFile(
             ex_mem_control_signal_struct.instruction <= 8'b0;
             ex_mem_control_signal_struct.memory_access <= 0;
             ex_mem_control_signal_struct.jump_signal <= 0;
+            execute_enable <= 1;
         end else begin
             if (execute_done && execute_enable) begin
                 // Load decoded instruction into EX/MEM pipeline registers
@@ -330,6 +332,7 @@ register_file registerFile(
             mem_wb_control_signals_reg.jump_signal <= 0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
+            memory_enable <= 1;
         end else begin
             target_address <= ex_mem_pc_plus_I_offset_reg;
             mux_selector <= ex_mem_control_signal_struct.jump_signal;
@@ -367,6 +370,7 @@ register_file registerFile(
         if (reset) begin
             wb_dest_reg_out <= 64'b0;
             wb_data_out <= 64'b0;
+            write_back_enable <= 1;
         end else begin
             if (write_back_done && write_back_enable) begin
                 // pass to reg
