@@ -23,6 +23,7 @@ module InstructionMemoryHandler (
 );
 
 logic cache_request_ready;
+logic cache_result_ready;
 
 /*     cache data_cache (
         .clock(clk),
@@ -39,7 +40,7 @@ logic cache_request_ready;
     );  */
 
 
-    recache instruction_cache (
+    /* decache instruction_cache (
         .clock(clk),
         .reset(reset),
         .read_enable(0), //input that fetcher send
@@ -60,7 +61,7 @@ logic cache_request_ready;
         .m_axi_arburst(m_axi_arburst),
         .data_out(instruction_out),
         .send_enable(cache_result_ready)
-    );  
+    ); */  
 
     always_comb begin
         if (reset) begin

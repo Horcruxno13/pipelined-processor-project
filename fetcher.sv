@@ -40,11 +40,7 @@ logic cache_miss_occurred;
         .clock(clk),
         .reset(reset),
         .read_enable(cache_request_ready), //input that fetcher send
-        .write_enable(0),
         .address(cache_request_address), // input that fetcher sends
-        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
-        // .send_complete(0),
-
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
         .m_axi_rlast(m_axi_rlast),
