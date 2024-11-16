@@ -67,7 +67,7 @@ logic [block_offset_width-1:0] block_offset;
 logic [data_width-1:0] data_out; 
 logic [31:0] buffer_array [15:0];    // 16 instructions, each 32 bits
 logic [3:0] buffer_pointer;          // Points to the next location in buffer_array
-logic [2:0] burst_counter;           // Counts each burst (0-7)
+logic [3:0] burst_counter;           // Counts each burst (0-7)
 logic [63:0] current_transfer_value;
 logic data_retrieved;
 
@@ -77,7 +77,7 @@ logic check_done_next;
 logic [data_width-1:0] data_out_next;
 logic send_enable_next;
 logic data_retrieved_next;
-
+logic data_received_mem;
 // Control signals and variables
 // logic cache_hit;
 // logic [31:0] data_out;
@@ -96,7 +96,7 @@ logic data_stored;
 
 integer data_size_temp = 32; 
 integer block_number;
-
+integer i;
 // State register update (sequential block)
 always_ff @(posedge clock) begin
     if (reset) begin
@@ -104,14 +104,18 @@ always_ff @(posedge clock) begin
         current_state <= IDLE_HIT;
         buffer_pointer <= 0;
         burst_counter <= 0;
-
+        data_received_mem <= 0;
   	end else begin
         // Update current state and other variables as per state transitions
         current_state <= next_state;
         send_enable <= send_enable_next;
+        data_retrieved <= data_retrieved_next;
     case (current_state)
         IDLE_HIT: begin
-
+            for (i = 0; i < 16; i = i + 1) begin
+                buffer_array[i] <= 32'b0;
+            end
+            data_received_mem <= 0;
         end
 
         MISS_REQUEST: begin
@@ -130,13 +134,13 @@ always_ff @(posedge clock) begin
                 buffer_array[buffer_pointer + 1] <= m_axi_rdata[63:32];
                 buffer_pointer <= buffer_pointer + 2;
                 burst_counter <= burst_counter + 1;
-
-                if (m_axi_rlast && (burst_counter == 8)) begin
-                    buffer_pointer <= 0;
-                    burst_counter <= 0;
-                end
             end
-            data_retrieved <= data_retrieved_next;
+
+            if (m_axi_rlast && (burst_counter == 8)) begin
+                buffer_pointer <= 0;
+                burst_counter <= 0;
+                data_received_mem <= 1;
+            end
         end
 
         STORE_DATA: begin
@@ -210,6 +214,9 @@ always_comb begin
     else begin
     case (current_state)
         IDLE_HIT: begin
+            m_axi_arvalid = 0;
+            m_axi_rready = 0;
+            data_retrieved_next = 0;
             if (read_enable && !check_done) begin
                 set_index = address[block_offset_width +: set_index_width];
                 tag = address[addr_width-1:addr_width-tag_width];
@@ -250,13 +257,13 @@ always_comb begin
 
         MEMORY_ACCESS: begin
             current_transfer_value = m_axi_rdata;
-            if (m_axi_rlast && burst_counter == 0) begin
-                m_axi_rready = 0;
+            if (data_received_mem) begin
+                // m_axi_rready = 0;
                 data_retrieved_next = 1;
             end
             empty_way_next = -1;
 
-            //todo - make sure that the emptyway next ki value is 0 in this earleir staate
+            //todo - make sure that the emptyway next ki value is 0 in this earlier staate
         end
 
         STORE_DATA: begin
