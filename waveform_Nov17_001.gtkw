@@ -1,24 +1,24 @@
 [*]
 [*] GTKWave Analyzer v3.3.66 (w)1999-2015 BSI
-[*] Mon Nov 18 04:26:37 2024
+[*] Mon Nov 18 08:19:39 2024
 [*]
 [dumpfile] "/home/angadsingh/pipelined-processor-project/trace.vcd"
-[dumpfile_mtime] "Mon Nov 18 04:03:00 2024"
-[dumpfile_size] 46583738
+[dumpfile_mtime] "Mon Nov 18 08:14:38 2024"
+[dumpfile_size] 20503041
 [savefile] "/home/angadsingh/pipelined-processor-project/waveform_Nov17_001.gtkw"
-[timestart] 49600
-[size] 1280 745
+[timestart] 97210
+[size] 1256 700
 [pos] -1 -1
-*-12.672268 58500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-12.672268 106960 106960 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.top.
 [treeopen] TOP.top.instructionFetcher.instruction_cache.
 [treeopen] TOP.top.instructionMemoryHandler.
 [treeopen] TOP.top.registerFile.
 [sst_width] 210
-[signals_width] 414
+[signals_width] 373
 [sst_expanded] 1
-[sst_vpaned_height] 199
+[sst_vpaned_height] 245
 @28
 TOP.top.clk
 TOP.top.reset
@@ -39,13 +39,102 @@ TOP.top.instructionFetcher.cache_request_ready
 @200
 -
 -
+@28
+TOP.top.if_id_valid_reg
+TOP.top.id_ex_valid_reg
+TOP.top.ex_mem_valid_reg
+TOP.top.mem_wb_valid_reg
+@200
+-
+-
+-
+@28
+TOP.top.clk
+@200
+-
+-
+-
+@28
+TOP.top.instructionWriteBack.wb_module_enable
+@22
+TOP.top.mem_wb_alu_data[63:0]
+TOP.top.mem_wb_control_signals_reg[213:0]
+TOP.top.mem_wb_loaded_data[63:0]
+@28
+TOP.top.mem_wb_valid_reg
+TOP.top.memory_done
+TOP.top.memory_enable
+TOP.top.write_back_enable
+@22
+TOP.top.instructionWriteBack.write_data[63:0]
+@28
+TOP.top.instructionWriteBack.wb_module_enable
+TOP.top.instructionWriteBack.write_enable
+@22
+TOP.top.instructionWriteBack.write_reg[4:0]
+@200
+-
+@28
+TOP.top.write_complete
+@200
+-
+@29
+TOP.top.mem_wb_valid_reg
+@200
 -
 -REGISTER VALUES
 -
+@22
+TOP.top.register(0)[63:0]
+TOP.top.register(1)[63:0]
+TOP.top.register(2)[63:0]
+TOP.top.register(3)[63:0]
+TOP.top.register(4)[63:0]
+TOP.top.register(5)[63:0]
+TOP.top.register(6)[63:0]
+TOP.top.register(7)[63:0]
+TOP.top.register(8)[63:0]
+TOP.top.register(9)[63:0]
+TOP.top.register(10)[63:0]
+TOP.top.register(11)[63:0]
+TOP.top.register(12)[63:0]
+TOP.top.register(13)[63:0]
+TOP.top.register(14)[63:0]
+TOP.top.register(15)[63:0]
+TOP.top.register(16)[63:0]
+TOP.top.register(17)[63:0]
+TOP.top.register(18)[63:0]
+TOP.top.register(19)[63:0]
+TOP.top.register(20)[63:0]
+TOP.top.register(21)[63:0]
+TOP.top.register(22)[63:0]
+TOP.top.register(23)[63:0]
+TOP.top.register(24)[63:0]
+TOP.top.register(25)[63:0]
+TOP.top.register(26)[63:0]
+TOP.top.register(27)[63:0]
+TOP.top.register(28)[63:0]
+TOP.top.register(29)[63:0]
+TOP.top.register(30)[63:0]
+TOP.top.register(31)[63:0]
+@200
 -
+-
+@28
+TOP.top.clk
+@200
+-
+@22
+TOP.top.instructionMemoryHandler.loaded_data_out[63:0]
+@28
+TOP.top.instructionMemoryHandler.memory_done
+@200
 -DONE SIGNALS
-@29
+@28
 TOP.top.fetcher_done
+TOP.top.decode_done
+TOP.top.execute_done
+TOP.top.memory_done
 @200
 -
 -ENABLE SIGNALS
@@ -110,8 +199,6 @@ TOP.top.if_id_pc_plus_i_reg_next[63:0]
 @22
 TOP.top.ex_mem_alu_data[63:0]
 TOP.top.ex_mem_alu_data_next[63:0]
-TOP.top.ex_mem_control_signal_struct[149:0]
-TOP.top.ex_mem_control_signal_struct_next[149:0]
 TOP.top.ex_mem_pc_plus_I_offset_reg[63:0]
 TOP.top.ex_mem_pc_plus_I_offset_reg_next[63:0]
 TOP.top.ex_mem_reg_b_data[63:0]

@@ -80,14 +80,18 @@ logic initial_selector;
 logic [63:0] register [31:0];
 
 
+logic reg_write_enable;
+logic [4:0] reg_write_addr;
+logic [63:0] reg_write_data;
+
 register_file registerFile(
     .clk(clk),
     .reset(reset),
     .read_addr1(read_addr1),
     .read_addr2(read_addr2),
-    .write_enable(write_enable),
-    .write_addr(write_addr),
-    .write_data(write_data),
+    .write_enable(reg_write_enable),
+    .write_addr(reg_write_addr),
+    .write_data(reg_write_data),
     .read_data1(read_data1),
     .read_data2(read_data2),
     .write_complete(write_complete),
@@ -247,9 +251,9 @@ register_file registerFile(
                 // pass to reg
                 read_addr1 <= id_ex_reg_a_addr;
                 read_addr2 <= id_ex_reg_b_addr;
-                write_enable <= 0;
-                write_addr <= 0;
-                write_data <= 0;
+                reg_write_enable <= 0;
+                reg_write_addr <= 0;
+                reg_write_data <= 0;
                 write_complete <= 0;
                 if_id_valid_reg <= 0;
                 register_values_ready <= 1'b1;       // Signal next cycle to read data
@@ -400,7 +404,7 @@ register_file registerFile(
     end
 
     // WRITE BACK STARTS
-    logic write_back_done, write_back_ready, write_back_enable;
+    logic write_back_ready, write_back_enable;
 
     //InstructionWriteBacks's output vars
     logic [63:0] wb_dest_reg_out, wb_dest_reg_out_next;
@@ -414,7 +418,6 @@ register_file registerFile(
         .control_signals(mem_wb_control_signals_reg),
         .write_reg(wb_dest_reg_out_next),
         .write_data(wb_data_out_next),
-        .write_back_done(write_back_done),
         .write_enable(wb_write_enable),
         .wb_module_enable(mem_wb_valid_reg)
     );
@@ -424,15 +427,19 @@ register_file registerFile(
             wb_dest_reg_out <= 64'b0;
             wb_data_out <= 64'b0;
             write_back_enable <= 1;
+            reg_write_enable <= 0;
         end else begin
-            if (write_back_done && write_back_enable) begin
+            if (write_back_enable) begin
                 // pass to reg
                 read_addr1 <= 0;
                 read_addr2 <= 0;
-                write_enable <= wb_write_enable;
-                write_addr <= wb_dest_reg_out_next;
-                write_data <= wb_data_out_next; 
-                mem_wb_valid_reg <= 0;
+                reg_write_enable <= wb_write_enable;
+                reg_write_addr <= wb_dest_reg_out_next;
+                reg_write_data <= wb_data_out_next; 
+                //mem_wb_valid_reg <= 0;
+                if (write_complete) begin
+                    mem_wb_valid_reg <= 0;
+                end
             end
         end
     end

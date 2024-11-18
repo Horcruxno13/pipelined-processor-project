@@ -9,7 +9,7 @@ typedef struct packed {
     logic memory_access;
     logic [4:0] dest_reg;
     logic jump_signal;              // Domino to halt everything prev
-    logic pc;
+    logic [63:0] pc;
 } control_signals_struct;
 
 `endif

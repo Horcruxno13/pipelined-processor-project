@@ -63,23 +63,35 @@ logic cache_result_ready;
         .send_enable(cache_result_ready)
     ); */  
 
+    /*
+        todo - make the cache talking more like the fetcher
+
+        todo - 
+    
+    */
+
     always_comb begin
         if (reset) begin
             loaded_data_out = 0;
             memory_done = 0;
         end
-        else if (control_signals.memory_access) begin
-            // some code
-            cache_request_ready = 1;
-            if (cache_result_ready) begin
-                memory_done = 1;
+        if (memory_enable) begin
+            if (control_signals.memory_access) begin
+                // some code
+                cache_request_ready = 1;
+                if (cache_result_ready) begin
+                    memory_done = 1;
+                end else begin
+                    memory_done = 0;
+                end
             end else begin
-                memory_done = 0;
+                loaded_data_out = 0;
+                memory_done = 1;
             end
         end else begin
             loaded_data_out = 0;
-            memory_done = 1;
-        end
+            memory_done = 0;
+        end 
     end
 
 endmodule

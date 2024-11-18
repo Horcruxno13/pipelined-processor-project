@@ -3,7 +3,7 @@ module InstructionDecoder (
     input logic clk,
     input logic reset, 
 
-    input logic pc_current,
+    input logic [63:0] pc_current,
     input logic [31:0] instruction,                 // Single 32-bit instruction input
     input logic decode_enable,
     input logic register_values_ready,
