@@ -36,7 +36,7 @@ module InstructionWriteBack
             // Jump, Store, Branch => Nothing happens
             if (control_signals.opcode == 7'b0100011 ||          // S-Type Store
                 control_signals.opcode == 7'b1100011 ||          // B-Type Branch
-                control_signals.opcode == 7'b1101111 ||          // JAL J-Type Jump
+                // control_signals.opcode == 7'b1101111 ||          // JAL J-Type Jump
                 control_signals.opcode == 7'b1100111 ||          // I-Type JALR
                 control_signals.opcode == 7'b0001111 ||          // FENCE (I-Type)
                 control_signals.opcode == 7'b1110011) begin      // System Instructions
@@ -58,7 +58,9 @@ module InstructionWriteBack
                              (control_signals.opcode == 7'b0110111)) begin   // LUI (U-Type)
                     // Write back from data load
                     write_data = loaded_data;
-                end
+                end else if (control_signals.opcode ==  7'b1101111) begin
+                    write_data <= control_signals.pc;
+                end    
             end
         end else begin
             write_data = 0;

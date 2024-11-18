@@ -3,6 +3,7 @@ module InstructionDecoder (
     input logic clk,
     input logic reset, 
 
+    input logic pc_current;
     input logic [31:0] instruction,                 // Single 32-bit instruction input
     input logic decode_enable,
     input logic register_values_ready,
@@ -325,6 +326,7 @@ module InstructionDecoder (
                         control_signals_out.memory_access = 0;
                     end
                     control_signals_out.dest_reg = rd;
+                    control_signals_out.pc = pc_current + 4;
                 
                     if (instruction_type == 8'b11111111) begin
                         $display("CANNOT DETECT TYPE");
