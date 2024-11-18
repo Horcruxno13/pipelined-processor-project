@@ -20,7 +20,7 @@ module InstructionWriteBack
     input [31:0] alu_result,
     input [31:0] loaded_data,
     input  control_signals_struct control_signals,
-    input logic write_back_enable,
+    input logic wb_module_enable,
 
     output [31:0] write_data, //todo - write back is a neater name here
     output [4:0] write_reg,
@@ -32,7 +32,7 @@ module InstructionWriteBack
             write_data = 0;
             write_reg = 0;
             write_enable = 0;
-        end else if (write_back_enable) begin
+        end else if (wb_module_enable) begin
             // Jump, Store, Branch => Nothing happens
             if (control_signals.opcode == 7'b0100011 ||          // S-Type Store
                 control_signals.opcode == 7'b1100011 ||          // B-Type Branch

@@ -416,7 +416,7 @@ register_file registerFile(
         .write_data(wb_data_out_next),
         .write_back_done(write_back_done),
         .write_enable(wb_write_enable),
-        .write_back_enable(mem_wb_valid_reg)
+        .wb_module_enable(mem_wb_valid_reg)
     );
 
     always_ff @(posedge clk) begin
