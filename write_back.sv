@@ -59,7 +59,7 @@ module InstructionWriteBack
                     // Write back from data load
                     write_data = loaded_data;
                 end else if (control_signals.opcode ==  7'b1101111) begin
-                    write_data <= control_signals.pc;
+                    write_data = control_signals.pc;
                 end    
             end
         end else begin
