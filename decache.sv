@@ -48,7 +48,11 @@ module decache #(
 
     // Data output and control signals
     output logic [63:0] data,                  // Data output to CPU
-    output logic send_enable                   // Indicates data is ready to send
+    output logic send_enable,                   // Indicates data is ready to send
+
+    // AXI Control
+    input logic instruction_cache_reading,
+    output logic data_cache_reading
 );
 
 
@@ -119,13 +123,27 @@ integer empty_way;
 integer empty_way_next;
 integer replace_line_number;
 
+logic write_data_to_mem;
+logic way_cleaned;
 logic data_stored;
 logic replace_line;
+logic [$clog2(ways)-1:0] way_to_replace;
+logic [$clog2(ways)-1:0] counter;
 // logic [:0] data_size_temp = 32;
 integer data_size_temp = 32; 
 integer block_number;
 integer i;
 // State register update (sequential block)
+
+always_ff @(posedge clock) begin
+    if (reset)
+        counter <= 0;              // Reset counter
+    else if (replace_line)
+        counter <= (counter + 1) % ways; // Increment counter cyclically
+end
+
+assign way_to_replace = counter;
+
 always_ff @(posedge clock) begin
     if (reset) begin
         // Initialize state and relevant variables
@@ -147,6 +165,7 @@ always_ff @(posedge clock) begin
                     buffer_array[i] <= 32'b0;
                 end
                 data_received_mem <= 0;
+                way_cleaned <= 0;
             end
 
             MISS_REQUEST: begin
@@ -178,14 +197,14 @@ always_ff @(posedge clock) begin
                 // Store fetched data in cache
                 if (empty_way_next != -1) begin
                     // Write tag and data into cache
-                    tags[set_index_next][empty_way_next] = tag;
-                    cache_data[set_index_next][empty_way_next] = {buffer_array[15], buffer_array[14], buffer_array[13], buffer_array[12],
+                    tags[set_index_next][empty_way_next] <= tag;
+                    cache_data[set_index_next][empty_way_next] <= {buffer_array[15], buffer_array[14], buffer_array[13], buffer_array[12],
                                                     buffer_array[11], buffer_array[10], buffer_array[9], buffer_array[8],
                                                     buffer_array[7], buffer_array[6], buffer_array[5], buffer_array[4],
                                                     buffer_array[3], buffer_array[2], buffer_array[1], buffer_array[0]};
 
-                    valid_bits[set_index_next][empty_way_next] = 1;
-                    data_stored = 1;
+                    valid_bits[set_index_next][empty_way_next] <= 1;
+                    data_stored <= 1;
                 end
             end
 
@@ -230,7 +249,17 @@ always_ff @(posedge clock) begin
             end
             
             REPLACE_DATA: begin
-                
+                replace_line <= 0;
+                if (dirty_bits[set_index][way_to_replace] == 1) begin
+                    valid_bits[set_index][way_to_replace] <= 0;
+                    write_data_to_mem <= 1;
+                    way_cleaned <= 1;
+                end
+
+                else begin
+                    valid_bits[set_index][way_to_replace] <= 0;
+                    way_cleaned <= 1;
+                end  
             end
         endcase
     end
@@ -242,7 +271,7 @@ always_comb begin
     case (current_state)
         IDLE_HIT: begin
             // Transition to MISS_REQUEST if cache miss
-            next_state = (!cache_hit && check_done) ? MISS_REQUEST : IDLE_HIT;
+            next_state = (!cache_hit && check_done && !instruction_cache_reading) ? MISS_REQUEST : IDLE_HIT;
         end
 
         MISS_REQUEST: begin
@@ -262,6 +291,7 @@ always_comb begin
 
         STORE_DATA: begin
             // Return to IDLE_HIT after storing data
+            next_state = (replace_line) ? REPLACE_DATA : STORE_DATA;
             next_state = (read_enable && data_stored) ? SEND_DATA : STORE_DATA;
             next_state = (write_enable && data_stored) ? WRITE_MISS : STORE_DATA;
         end
@@ -276,7 +306,7 @@ always_comb begin
         // New states for write operations
         WRITE_REQUEST: begin
             // Transition to WRITE_MEMORY_WAIT after initiating write request
-            next_state = (m_axi_awvalid && m_axi_awready) ? WRITE_MEMORY_WAIT : WRITE_MISS_REQUEST;
+            next_state = (m_axi_awvalid && m_axi_awready) ? WRITE_MEMORY_WAIT : WRITE_REQUEST;
         end
 
         WRITE_MEMORY_WAIT: begin
@@ -286,16 +316,18 @@ always_comb begin
 
         WRITE_MEMORY_ACCESS: begin
             // Transition to WRITE_DATA after staging data for memory
-            next_state = (m_axi_wlast && !m_axi_wvalid) ? WRITE_DATA : WRITE_COMPLETE;
+            next_state = (m_axi_wlast && !m_axi_wvalid) ? WRITE_COMPLETE : WRITE_MEMORY_ACCESS;
         end
 
         WRITE_COMPLETE: begin
             // Return to IDLE_HIT after completing write operation
-            next_state = (write_data_ready) ? IDLE_HIT : WRITE_COMPLETE;
+            next_state = (write_data_ready && !way_cleaned) ? IDLE_HIT : WRITE_COMPLETE;
+            next_state = (write_data_ready && way_cleaned) ? IDLE_HIT : STORE_DATA;
         end
 
         REPLACE_DATA: begin
-            next_state = (write_data_ready) ? IDLE_HIT : WRITE_COMPLETE;
+            next_state = (!write_data_to_mem && way_cleaned) ? STORE_DATA : REPLACE_DATA;
+            next_state = (write_data_to_mem && way_cleaned) ? WRITE_REQUEST : REPLACE_DATA;
         end
         default: next_state = IDLE_HIT;
     endcase
@@ -312,6 +344,8 @@ always_comb begin
         m_axi_rready = 0;
         send_enable_next = 0;
         next_state = 0;
+        replace_line = 0;
+        data_cache_reading = 0;
     end 
     else begin
         case (current_state)
@@ -319,6 +353,8 @@ always_comb begin
                 m_axi_arvalid = 0;
                 m_axi_rready = 0;
                 data_retrieved_next = 0;
+                replace_line = 0;
+                data_cache_reading = 0;
                 if (read_enable && !check_done) begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
@@ -352,7 +388,7 @@ always_comb begin
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
-                            cache_data[set_index][i][(block_offset) * 32 +: 32] = data_input; //TODO: FIX THE INPUT LENGTH
+                            cache_data[set_index][i][(block_offset) * 64 +: 64] = data_input; //TODO: FIX THE INPUT LENGTH
                             dirty_bits[set_index][i] = 1;
                         end
                     end
@@ -372,6 +408,7 @@ always_comb begin
                 m_axi_arsize = 3;
                 m_axi_arburst = 2;
                 m_axi_araddr = modified_address;
+                data_cache_reading = 1;
             end
 
             MEMORY_WAIT: begin
@@ -389,6 +426,7 @@ always_comb begin
             end
 
             STORE_DATA: begin
+                data_cache_reading = 0;
                 set_index_next = modified_address[block_offset_width + set_index_width - 1 : block_offset_width];
                 tag_next = modified_address[addr_width-1 : addr_width - tag_width];
                 
@@ -420,6 +458,7 @@ always_comb begin
             WRITE_MISS: begin
                 cache_data[set_index][empty_way][(block_offset) * 64 +: 64] = data_input; // TODO: TEMPORARY FIX
                 send_enable_next = 1;
+                dirty_bits[set_index][empty_way] = 1;
                 if (!write_enable) begin
                     send_enable_next = 0;
                     check_done = 0;
@@ -427,7 +466,7 @@ always_comb begin
             end 
             // New states for write operations
             WRITE_REQUEST: begin
-                // Add actions for WRITE_MISS_REQUEST state if needed
+                // Add actions for WRITE_REQUEST state if needed
                 modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
                 m_axi_awvalid = 1;
                 m_axi_awlen = 7;
@@ -454,9 +493,9 @@ always_comb begin
             end
 
             REPLACE_DATA: begin
-                replace_line = 0;
 
             end
+            
             default: begin
                 data_out = 0;
                 check_done = 0;
