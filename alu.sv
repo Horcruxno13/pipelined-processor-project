@@ -90,6 +90,7 @@ module alu (
 	input logic [63:0] rs2, //value
 	input signed [63:0] imm, //value
 	input logic [63:0] shamt,
+	input [63:0] pc_alu,
 	input logic alu_enable,
 	output signed [63:0] result
 	//output logic alu_done_flag
@@ -308,6 +309,25 @@ always_comb begin
 			8'd52: begin // BGEU
 				result = (rs1 >= rs2) ? 64'b1 : 64'b0;
 			end
+
+		 //AUIPC: Add Upper Immediate to Program Counter Value
+		 	8'd56 : begin
+				result = pc_alu + (imm << 12);
+			end
+
+			// Load Instructions
+			8'd59, 8'd60, 8'd61, 8'd62, 8'd63, 8'd64, 8'd65: begin
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				logic signed [63:0] signed_imm;
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+
+				// Perform the addi operation to compute the effective address
+				result = rs1 + $signed(signed_imm);
+        	end
+
 		endcase
 	// end
 	end

@@ -31,7 +31,9 @@ module InstructionWriteBack
             write_data = 64'b0;
             write_reg = 5'b0;
             write_enable = 0;
-        end else if (wb_module_enable) begin
+        end 
+        
+        if (wb_module_enable) begin
             // Jump, Store, Branch => Nothing happens
             if (control_signals.opcode == 7'b0100011 ||          // S-Type Store
                 control_signals.opcode == 7'b1100011 ||          // B-Type Branch
@@ -52,6 +54,7 @@ module InstructionWriteBack
                     (control_signals.opcode == 7'b0011011) ||                // I-Type ALU (immediate, 32M)
                     (control_signals.opcode == 7'b0010111)) begin            // AUIPC (U-Type)
                     write_data = alu_result;
+                    write_enable = 1;
                 end else if ((control_signals.opcode == 7'b0000011) ||       // I-Type Load
                              (control_signals.opcode == 7'b0110111)) begin   // LUI (U-Type)
                     // Write back from data load
@@ -71,8 +74,8 @@ module InstructionWriteBack
                 end    
             end
         end else begin
-            write_data = 0;
-            write_reg = 0;
+            write_data = 64'b0;
+            write_reg = 5'b0;
             write_enable = 0;
         end
     end

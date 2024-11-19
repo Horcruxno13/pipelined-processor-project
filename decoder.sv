@@ -239,6 +239,9 @@ module InstructionDecoder (
                         // Load Instructions
                         7'b0000011: begin
                             funct3 = instruction[14:12];
+                            imm     = instruction[31:20];    // 12-bit Immediate
+                            rs1     = instruction[19:15];    // Source Register 1
+                            rd      = instruction[11:7]; 
                             case(funct3)
                                 3'b000: instruction_type = 8'd59; // LB (new value)
                                 3'b001: instruction_type = 8'd60; // LH (new value)
@@ -320,6 +323,7 @@ module InstructionDecoder (
                     control_signals_out.opcode = opcode;
                     control_signals_out.shamt = shamt;
                     control_signals_out.instruction = instruction_type;
+                    //loads and stores
                     if (opcode == 7'b0000011 || opcode == 7'b0100011) begin
                         control_signals_out.memory_access = 1;
                     end else begin

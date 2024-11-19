@@ -22,8 +22,11 @@ module InstructionExecutor (
         .imm(control_signals.imm),
         .shamt(control_signals.shamt),
         // .alu_enable(alu_enable),
+        .pc_alu(pc_current),
         .result(alu_data_out)
     );
+
+    logic localJumpSignal = 0;
 
 
     always_comb begin
@@ -36,21 +39,26 @@ module InstructionExecutor (
             if(control_signals.opcode == 7'b1100011) begin                      // B-Type Branch (Conditional Jump)
                 if (alu_data_out == 1) begin  // branch conditions met 
                     pc_I_offset_out = pc_current + control_signals.imm;
-                    control_signals_out.jump_signal = 1;
+                    localJumpSignal = 1;
+                    control_signals_out.jump_signal = localJumpSignal;
                 end else begin          // not met
                     pc_I_offset_out = 64'b0;
-                    control_signals_out.jump_signal = 0;
+                    localJumpSignal = 0;
+                    control_signals_out.jump_signal = localJumpSignal;
                 end
             end else if(control_signals.opcode == 7'b1101111) begin            // JAL J-Type Jump (Unconditional Jump)
                 pc_I_offset_out = pc_current + control_signals.imm;
-                control_signals_out.jump_signal = 1;
+                localJumpSignal = 1;
+                control_signals_out.jump_signal = localJumpSignal;
             end else if (control_signals.opcode == 7'b1100111) begin           // I-Type JALR (Unconditional Jump with rs1)
                 pc_I_offset_out = reg_a_contents + control_signals.imm;
-                control_signals_out.jump_signal = 1;
+                localJumpSignal = 1;
+                control_signals_out.jump_signal = localJumpSignal;
             end else begin
                 // no branches, just alu which always runs in comb
                 pc_I_offset_out = 64'b0;
-                control_signals_out.jump_signal = 0;
+                localJumpSignal = 0;
+                control_signals_out.jump_signal = localJumpSignal;
             end
             control_signals_out.imm = control_signals.imm;
             control_signals_out.shamt = control_signals.shamt;

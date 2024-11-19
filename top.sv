@@ -83,9 +83,13 @@ logic [63:0] register [31:0];
 logic reg_write_enable;
 logic [4:0] reg_write_addr;
 logic [63:0] reg_write_data;
+logic [4:0] read_addr1, read_addr2;
+logic [63:0] read_data1, read_data2;
 
 logic instruction_cache_reading;
 logic data_cache_reading;
+
+
 
 register_file registerFile(
     .clk(clk),
@@ -425,12 +429,14 @@ register_file registerFile(
                 mem_wb_alu_data <= ex_mem_alu_data;
                 mem_wb_valid_reg <= 1;
                 ex_mem_valid_reg <= 0;
+            end else begin
+                mem_wb_valid_reg <= 0;
             end
         end
     end
 
     // WRITE BACK STARTS
-    logic write_back_ready, write_back_enable;
+    logic write_back_ready;
 
     //InstructionWriteBacks's output vars
     logic [63:0] wb_dest_reg_out, wb_dest_reg_out_next;
@@ -452,21 +458,14 @@ register_file registerFile(
         if (reset) begin
             wb_dest_reg_out <= 64'b0;
             wb_data_out <= 64'b0;
-            write_back_enable <= 1;
             reg_write_enable <= 0;
         end else begin
-            if (write_back_enable) begin
                 // pass to reg
                 read_addr1 <= 0;
                 read_addr2 <= 0;
                 reg_write_enable <= wb_write_enable;
                 reg_write_addr <= wb_dest_reg_out_next;
                 reg_write_data <= wb_data_out_next; 
-                //mem_wb_valid_reg <= 0;
-                if (write_complete) begin
-                    mem_wb_valid_reg <= 0;
-                end
-            end
         end
     end
 
