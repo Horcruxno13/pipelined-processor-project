@@ -364,7 +364,8 @@ register_file registerFile(
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
         .m_axi_arburst(m_axi_arburst),
-        .m_axi_rready(m_axi_rready)
+        .m_axi_rready(m_axi_rready),
+        .mem_wb_pipeline_valid(mem_wb_valid_reg)
     );
 
     // assign memory_ready = ~ex_mem_imm_reg;
@@ -393,6 +394,8 @@ register_file registerFile(
                 fetch_enable <= 0;
                 memory_enable <= 0;
             end
+
+            
             if (memory_done && memory_enable) begin
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;

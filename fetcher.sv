@@ -31,9 +31,7 @@ module InstructionFetcher (
 
 // Internal wires and registers (if needed)
 logic cache_request_ready;
-logic [63:0] cache_result;
-logic cache_miss_occurred;
-
+logic cache_result_ready;
 
     recache instruction_cache (
         .clock(clk),
@@ -95,12 +93,10 @@ always_comb begin
             
             //WAITING GAP - 2 - WAITING FOR VALUES TO BE LATCHED 
             
-            if (if_id_pipeline_valid) begin  // clk 3 //TODO - MAKE SURE THIS ALSO DOESN'T KEEP RUNNING
+            if (if_id_pipeline_valid) begin  // clk 3 
                 fetcher_done = 0;
-                //pc_current = pc_current + 4; //TODO - MOVE THIS OUT
             //WAITING GAP - 3 starts because of this  - WAITING FOR THE PV TO BECOME ZERO ALSO 
             end
-            //set next pc by incrementing it
         end else begin // in next clk
             cache_request_ready = 0;
             fetcher_done = 0;
