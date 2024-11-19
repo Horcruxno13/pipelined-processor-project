@@ -7,7 +7,7 @@ module InstructionMemoryHandler (
     input  logic [63:0] alu_data,         // ALU result data
     input  control_signals_struct control_signals, //todo = change the type      // Control Signals
     input logic mem_wb_pipeline_valid,
-
+    input logic instruction_cache_reading,
 
     output logic [63:0] loaded_data_out,
     output logic        memory_done,            // Ready signal indicating fetch completion
@@ -24,37 +24,66 @@ module InstructionMemoryHandler (
     output logic [7:0] m_axi_arlen,           // Length of the burst (fetches full line)
     output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
     output logic [1:0] m_axi_arburst,
-    output logic m_axi_rready                // Ready to accept data from AXI
+    output logic m_axi_rready,                // Ready to accept data from AXI
+    output logic data_cache_reading
 );
 
 logic cache_request_ready;
 logic cache_result_ready;
 logic [63:0] cache_request_address;
 
+decache data_cache (
+    .clock(clk),
+    .reset(reset),
+    .read_enable(1'b0),              // Fetcher signals no read
+    .write_enable(1'b1),             // Write enable is active
+    .address(64'b0),            // Address from ALU result
+    .data_size(3'b100),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
+    .data_input(64'b0),              // Placeholder for data to write, if needed
 
+    // AXI interface for read transactions
+    .m_axi_arready(m_axi_arready),
+    .m_axi_rvalid(m_axi_rvalid),
+    .m_axi_rlast(m_axi_rlast),
+    .m_axi_rdata(m_axi_rdata),
+    .m_axi_arvalid(m_axi_arvalid),
+    .m_axi_araddr(m_axi_araddr),
+    .m_axi_arlen(m_axi_arlen),
+    .m_axi_arsize(m_axi_arsize),
+    .m_axi_arburst(m_axi_arburst),
+    .m_axi_rready(m_axi_rready),
 
-    /* decache instruction_cache (
-        .clock(clk),
-        .reset(reset),
-        .read_enable(0), //input that fetcher send
-        .write_enable(1),
-        .address(alu_result), // input that fetcher sends
-        .data_size(64'b0000000000000000000000000000000000000000000000000000000001000000),
-        // .send_complete(0),//todo - fix this
+    // AXI interface for write transactions
+    .m_axi_awready(m_axi_awready),
+    .m_axi_wready(m_axi_wready),
+    .m_axi_bvalid(m_axi_bvalid),
+    .m_axi_bresp(m_axi_bresp),
+    .m_axi_awvalid(m_axi_awvalid),
+    .m_axi_awaddr(m_axi_awaddr),
+    .m_axi_awlen(m_axi_awlen),
+    .m_axi_awsize(m_axi_awsize),
+    .m_axi_awburst(m_axi_awburst),
+    .m_axi_wdata(m_axi_wdata),             // Placeholder for write data
+    .m_axi_wstrb(m_axi_wstrb),       // Write strobe (all bytes valid)
+    .m_axi_wvalid(m_axi_wvalid),             // Not writing any data currently
+    .m_axi_wlast(m_axi_wlast),              // No burst write in progress
+    .m_axi_bready(m_axi_bready),             // Ready to accept write responses
 
-        .m_axi_arready(m_axi_arready),
-        .m_axi_rvalid(m_axi_rvalid),
-        .m_axi_rlast(m_axi_rlast),
-        .m_axi_rdata(m_axi_rdata),
-        .m_axi_arvalid(m_axi_arvalid),
-        .m_axi_araddr(m_axi_araddr),
-        .m_axi_arlen(m_axi_arlen),
-        .m_axi_arsize(m_axi_arsize),
-        .m_axi_rready(m_axi_rready),
-        .m_axi_arburst(m_axi_arburst),
-        .data_out(instruction_out),
-        .send_enable(cache_result_ready)
-    ); */  
+    // Data output and control signals
+    .data(instruction_out),          // Output to CPU (instruction data)
+    .send_enable(cache_result_ready),// Indicates data is ready to send
+
+    // AXI Control
+    .instruction_cache_reading(instruction_cache_reading),// Instruction cache is not in reading mode
+    .data_cache_reading(data_cache_reading)        // Not currently reading data cache
+);
+
+    /*
+        todo - make the cache talking more like the fetcher
+
+        todo - 
+    
+    */
 
     always_comb begin
         if (reset) begin

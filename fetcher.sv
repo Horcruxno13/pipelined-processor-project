@@ -8,7 +8,7 @@ module InstructionFetcher (
     input  logic [63:0] target_address,     // Target address for branches/jumps (64 bits)
     input  logic        select_target,      // Control signal for address selection
     input  logic if_id_pipeline_valid,
-
+    input  logic data_cache_reading,
 
 
     output logic [63:0] instruction_out,    // Instruction bits fetched from cache (64 bits)
@@ -26,7 +26,8 @@ module InstructionFetcher (
     output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
     output logic [1:0] m_axi_arburst,
 
-    output logic m_axi_rready                // Ready to accept data from AXI
+    output logic m_axi_rready,                // Ready to accept data from AXI
+    output logic instruction_cache_reading
 );
 
 // Internal wires and registers (if needed)
@@ -49,7 +50,9 @@ logic cache_result_ready;
         .m_axi_rready(m_axi_rready),
         .m_axi_arburst(m_axi_arburst),
         .data_out(instruction_out),
-        .send_enable(cache_result_ready)
+        .send_enable(cache_result_ready),
+        .instruction_cache_reading(instruction_cache_reading), // Instruction cache is not in reading mode
+        .data_cache_reading(data_cache_reading)        // Not currently reading data cache
     );  
 
 
