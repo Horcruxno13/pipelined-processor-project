@@ -350,30 +350,46 @@ register_file registerFile(
     logic [63:0] mem_wb_alu_data;
     logic mem_wb_valid_reg;
 
-    InstructionMemoryHandler instructionMemoryHandler(
+    InstructionMemoryHandler instructionMemoryHandler (
         .clk(clk),                
         .reset(reset),            
         .pc_I_offset(ex_mem_pc_plus_I_offset_reg),        
         .reg_b_contents(ex_mem_reg_b_data),         
         .alu_data(ex_mem_alu_data),    
         .control_signals(ex_mem_control_signal_struct),    
-        .loaded_data_out(mem_wb_loaded_data_next),
-        .memory_done(memory_done),
         .memory_enable(ex_mem_valid_reg),
+        .mem_wb_pipeline_valid(mem_wb_valid_reg),
+        .instruction_cache_reading(instruction_cache_reading),
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
         .m_axi_rlast(m_axi_rlast),
         .m_axi_rdata(m_axi_rdata),
+        .m_axi_awready(m_axi_awready),
+        .m_axi_wready(m_axi_wready),
+        .m_axi_bvalid(m_axi_bvalid),
+        .m_axi_bresp(m_axi_bresp),
+
+        .loaded_data_out(mem_wb_loaded_data_next),
+        .memory_done(memory_done),
         .m_axi_arvalid(m_axi_arvalid),
         .m_axi_araddr(m_axi_araddr),
         .m_axi_arlen(m_axi_arlen),
         .m_axi_arsize(m_axi_arsize),
         .m_axi_arburst(m_axi_arburst),
         .m_axi_rready(m_axi_rready),
-        .mem_wb_pipeline_valid(mem_wb_valid_reg),
-        .instruction_cache_reading(instruction_cache_reading),
+        .m_axi_awvalid(m_axi_awvalid),
+        .m_axi_awaddr(m_axi_awaddr),
+        .m_axi_awlen(m_axi_awlen),
+        .m_axi_awsize(m_axi_awsize),
+        .m_axi_awburst(m_axi_awburst),
+        .m_axi_wdata(m_axi_wdata),
+        .m_axi_wstrb(m_axi_wstrb),
+        .m_axi_wvalid(m_axi_wvalid),
+        .m_axi_wlast(m_axi_wlast),
+        .m_axi_bready(m_axi_bready),
         .data_cache_reading(data_cache_reading)
     );
+
 
     // assign memory_ready = ~ex_mem_imm_reg;
 

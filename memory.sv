@@ -12,7 +12,6 @@ module InstructionMemoryHandler (
     output logic [63:0] loaded_data_out,
     output logic        memory_done,            // Ready signal indicating fetch completion
 
-
     // AXI interface inputs for read transactions
     input logic m_axi_arready,                // Ready signal from AXI for read address
     input logic m_axi_rvalid,                 // Data valid signal from AXI read data channel
@@ -25,6 +24,25 @@ module InstructionMemoryHandler (
     output logic [2:0] m_axi_arsize,          // Size of each data unit in the burst
     output logic [1:0] m_axi_arburst,
     output logic m_axi_rready,                // Ready to accept data from AXI
+    
+    // AXI interface inputs for write transactions
+    input logic m_axi_awready,                 // Ready signal from AXI for write address
+    input logic m_axi_wready,                  // Ready signal from AXI for write data
+    input logic m_axi_bvalid,                  // Write response valid from AXI
+    input logic [1:0] m_axi_bresp,             // Write response from AXI
+
+    // AXI interface outputs for write transactions
+    output logic m_axi_awvalid,                // Valid signal for write address
+    output logic [63:0] m_axi_awaddr,          // Write address output to AXI
+    output logic [7:0] m_axi_awlen,            // Length of the burst for write
+    output logic [2:0] m_axi_awsize,           // Size of each data unit in the burst for write
+    output logic [1:0] m_axi_awburst,          // Burst type for write transaction
+    output logic [63:0] m_axi_wdata,           // Data to be written to AXI
+    output logic [7:0] m_axi_wstrb,            // Write strobe for data masking
+    output logic m_axi_wvalid,                 // Valid signal for write data
+    output logic m_axi_wlast,                  // Last transfer in the write burst
+    output logic m_axi_bready,                 // Ready to accept write response
+
     output logic data_cache_reading
 );
 
