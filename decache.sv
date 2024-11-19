@@ -12,7 +12,7 @@ module decache #(
     input logic write_enable,                  // Signal to trigger a cache write
     input logic [63:0] address,                // Address to read/write from/to cache
     input logic [2:0] data_size,               // Size of data requested (in bytes)
-    input logic [63:0] data_input
+    input logic [63:0] data_input,
 
     // AXI interface inputs for read transactions
     input logic m_axi_arready,                 // Ready signal from AXI for read address
@@ -123,6 +123,7 @@ integer empty_way;
 integer empty_way_next;
 integer replace_line_number;
 
+logic write_data_done;
 logic write_data_to_mem;
 logic way_cleaned;
 logic data_stored;
@@ -158,6 +159,8 @@ always_ff @(posedge clock) begin
         current_state <= next_state;
         send_enable <= send_enable_next;
         data_retrieved <= data_retrieved_next;
+        // set_index <= set_index_next;
+        // empty_way <= empty_way_next;
         case (current_state)
             IDLE_HIT: begin
                 // Idle state for cache hits (no actions yet)
@@ -249,7 +252,6 @@ always_ff @(posedge clock) begin
             end
             
             REPLACE_DATA: begin
-                replace_line <= 0;
                 if (dirty_bits[set_index][way_to_replace] == 1) begin
                     valid_bits[set_index][way_to_replace] <= 0;
                     write_data_to_mem <= 1;
@@ -321,8 +323,8 @@ always_comb begin
 
         WRITE_COMPLETE: begin
             // Return to IDLE_HIT after completing write operation
-            next_state = (write_data_ready && !way_cleaned) ? IDLE_HIT : WRITE_COMPLETE;
-            next_state = (write_data_ready && way_cleaned) ? IDLE_HIT : STORE_DATA;
+            next_state = (write_data_done && !way_cleaned) ? IDLE_HIT : WRITE_COMPLETE;
+            next_state = (write_data_done && way_cleaned) ? IDLE_HIT : STORE_DATA;
         end
 
         REPLACE_DATA: begin
@@ -346,6 +348,10 @@ always_comb begin
         next_state = 0;
         replace_line = 0;
         data_cache_reading = 0;
+        set_index = 0;
+        tag = 0;
+        block_offset = 0;
+        empty_way_next = 0;
     end 
     else begin
         case (current_state)
@@ -359,7 +365,6 @@ always_comb begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
                     block_offset = address[block_offset_width-1:2];
-
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
@@ -488,12 +493,12 @@ always_comb begin
 
             WRITE_COMPLETE: begin
                 if (!m_axi_wlast && !m_axi_bready) begin
-                    write_data_ready = 0;
+                    write_data_done = 1;
                 end 
             end
 
             REPLACE_DATA: begin
-
+                replace_line = 0;
             end
             
             default: begin
