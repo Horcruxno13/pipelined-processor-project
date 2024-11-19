@@ -29,6 +29,7 @@ module InstructionMemoryHandler (
 
 logic cache_request_ready;
 logic cache_result_ready;
+logic [63:0] cache_request_address;
 
 
 
