@@ -4,7 +4,7 @@ module decache #(
     parameter sets = 2,                        // Number of sets in the cache
     parameter ways = 2,                        // Number of ways (associativity) in the cache
     parameter addr_width = 64,                 // Width of the address bus
-    parameter data_width = 64                  // Width of the data bus TODO: CONFIRM THE MATH
+    parameter data_width = 64                  // Width of the data bus 
 )(
     input logic clock,
     input logic reset,
@@ -101,6 +101,8 @@ logic [3:0] burst_counter;           // Counts each burst (0-7)
 logic [63:0] current_transfer_value;
 logic data_retrieved;
 
+logic [63:0] temp_data; // Temporary variable for extracted data
+logic [63:0] write_mask;
 // internal logic next bits
 logic cache_hit_next;
 logic check_done_next;
@@ -352,6 +354,12 @@ always_comb begin
         tag = 0;
         block_offset = 0;
         empty_way_next = 0;
+        write_mask = 64'h0;
+        for (int set = 0; set < sets; set++) begin
+            for (int way = 0; way < ways; way++) begin
+                cache_data[set][way] = '0; // Initialize each cache line to 0
+            end
+        end
     end 
     else begin
         case (current_state)
@@ -368,7 +376,14 @@ always_comb begin
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
-                            data_out = cache_data[set_index][i][(block_offset) * 64 +: 64]; //TODO: data size
+                            temp_data = cache_data[set_index][i][(block_offset) * 64 +: 64];
+                            case (data_size)
+                                3'b001: data_out = {56'b0, temp_data[7:0]};        // 1 byte
+                                3'b010: data_out = {48'b0, temp_data[15:0]};       // 2 bytes
+                                3'b100: data_out = {32'b0, temp_data[31:0]};       // 4 bytes
+                                3'b111: data_out = temp_data;                      // 8 bytes
+                                default: data_out = 64'b0;                         // Default case (shouldn't happen)
+                            endcase
                         end
                     end
                     check_done = 1;
@@ -389,11 +404,18 @@ always_comb begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
                     block_offset = address[block_offset_width-1:2];
+                    case (data_size)
+                        3'b001: write_mask = 64'hFF;                  // 1 byte
+                        3'b010: write_mask = 64'hFFFF;                // 2 bytes
+                        3'b100: write_mask = 64'hFFFFFFFF;            // 4 bytes
+                        3'b111: write_mask = 64'hFFFFFFFFFFFFFFFF;    // 8 bytes
+                        default: write_mask = 64'h0;                  // Default case
+                    endcase
 
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
-                            cache_data[set_index][i][(block_offset) * 64 +: 64] = data_input; //TODO: FIX THE INPUT LENGTH
+                            cache_data[set_index][i][(block_offset) * 64 +: 64] = (cache_data[set_index][i][(block_offset) * 64 +: 64] & ~write_mask) | (data_input & write_mask);
                             dirty_bits[set_index][i] = 1;
                         end
                     end
@@ -450,8 +472,14 @@ always_comb begin
             end
 
             SEND_DATA: begin
-                // TODO: TEMPORARY FIX
-                data_out = cache_data[set_index][empty_way][(block_offset) * 64 +: 64]; 
+                temp_data = cache_data[set_index][empty_way][(block_offset) * 64 +: 64]; 
+                case (data_size)
+                    3'b001: data_out = {56'b0, temp_data[7:0]};        // 1 byte
+                    3'b010: data_out = {48'b0, temp_data[15:0]};       // 2 bytes
+                    3'b100: data_out = {32'b0, temp_data[31:0]};       // 4 bytes
+                    3'b111: data_out = temp_data;                      // 8 bytes
+                    default: data_out = 64'b0;                         // Default case (shouldn't happen)
+                endcase
                 send_enable_next = 1;
                 if (!read_enable) begin
                     send_enable_next = 0;
@@ -461,7 +489,7 @@ always_comb begin
             end 
 
             WRITE_MISS: begin
-                cache_data[set_index][empty_way][(block_offset) * 64 +: 64] = data_input; // TODO: TEMPORARY FIX
+                cache_data[set_index][empty_way][(block_offset) * 64 +: 64] = (cache_data[set_index][empty_way][(block_offset) * 64 +: 64] & ~write_mask) | (data_input & write_mask);
                 send_enable_next = 1;
                 dirty_bits[set_index][empty_way] = 1;
                 if (!write_enable) begin
