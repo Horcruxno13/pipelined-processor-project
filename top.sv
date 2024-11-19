@@ -84,6 +84,9 @@ logic reg_write_enable;
 logic [4:0] reg_write_addr;
 logic [63:0] reg_write_data;
 
+logic instruction_cache_reading;
+logic data_cache_reading;
+
 register_file registerFile(
     .clk(clk),
     .reset(reset),
@@ -146,7 +149,9 @@ register_file registerFile(
         .m_axi_rready(m_axi_rready),
         .m_axi_arburst(m_axi_arburst),
         .if_id_pipeline_valid(if_id_valid_reg),
-        .fetcher_done(fetcher_done)
+        .fetcher_done(fetcher_done),
+        .instruction_cache_reading(instruction_cache_reading),
+        .data_cache_reading(data_cache_reading)
     );
 
     logic fetch_reset_done;
@@ -365,7 +370,9 @@ register_file registerFile(
         .m_axi_arsize(m_axi_arsize),
         .m_axi_arburst(m_axi_arburst),
         .m_axi_rready(m_axi_rready),
-        .mem_wb_pipeline_valid(mem_wb_valid_reg)
+        .mem_wb_pipeline_valid(mem_wb_valid_reg),
+        .instruction_cache_reading(instruction_cache_reading),
+        .data_cache_reading(data_cache_reading)
     );
 
     // assign memory_ready = ~ex_mem_imm_reg;
