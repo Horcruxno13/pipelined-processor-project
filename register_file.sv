@@ -7,6 +7,7 @@ module register_file
     // Global Signals
     input clk,
     input reset,
+    input [63:0] stackptr,
 
     // For Read
     input [ADDR_WIDTH-1:0] read_addr1,                       // Address of the first register to read
@@ -31,8 +32,13 @@ module register_file
             // If reset, register is initiated as 0
             integer i;
             for (i = 0; i < 32; i = i + 1) begin
-                register[i] <= 64'b0;
+                if (i==2) begin
+                    register[i] <= stackptr;
+                end else begin
+                    register[i] <= 64'b0;
+                end
             end
+            
         end 
         else if (write_enable) begin
             if (write_addr != 0) begin

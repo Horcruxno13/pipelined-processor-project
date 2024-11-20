@@ -102,7 +102,8 @@ register_file registerFile(
     .read_data1(read_data1),
     .read_data2(read_data2),
     .write_complete(write_complete),
-    .register(register)
+    .register(register),
+    .stackptr(stackptr)
 );
 
 // Assign initial PC value from entry point
