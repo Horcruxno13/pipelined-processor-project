@@ -7,7 +7,7 @@ module register_file
     // Global Signals
     input clk,
     input reset,
-    input [63:0] stackptr,
+    input [DATA_WIDTH-1:0] stackptr,
 
     // For Read
     input [ADDR_WIDTH-1:0] read_addr1,                       // Address of the first register to read
