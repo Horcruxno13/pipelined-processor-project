@@ -46,16 +46,16 @@ module InstructionMemoryHandler (
     output logic data_cache_reading
 );
 
-logic cache_request_ready;
+logic decache_request_ready;
 logic decache_result_ready;
-logic [63:0] cache_request_address;
+logic [63:0] decache_request_address;
 
 /*
 .clock(clk),
     .reset(reset),
     .read_enable(control_signals.read_memory_access),              // Fetcher signals no read - LOAD INSTRUCTION
     .write_enable(control_signals.write_memory_access),             // Write enable is active - STORE INSTRUCTION
-    .address(cache_request_address),            // Address from ALU result
+    .address(decache_request_address),            // Address from ALU result
     .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
     .data_input(reg_b_contents),      */
 
@@ -64,7 +64,7 @@ decache data_cache (
     .reset(reset),
     .read_enable(control_signals.read_memory_access),              // Fetcher signals no read
     .write_enable(1'b0),             // Write enable is active
-    .address(cache_request_address),            // Address from ALU result
+    .address(decache_request_address),            // Address from ALU result
     .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
     .data_input(reg_b_contents),              // Placeholder for data to write, if needed
 
@@ -116,9 +116,17 @@ decache data_cache (
         if (reset) begin
             loaded_data_out = 0;
             memory_done = 0;
-            cache_request_address = 64'b0;
-            cache_request_ready = 0;
+            decache_request_address = 64'b0;
+            decache_request_ready = 0;
         end else begin
+            logic memoryCaseVariable = 0;
+            if (memory_enable && control_signals.read_memory_access) begin
+                memoryCaseVariable = 1;
+            end else if (memory_enable && control_signals.write_memory_access) begin
+                memoryCaseVariable = 2;
+            end else if (!memory_enable) begin
+                memoryCaseVariable = 3;
+            end
             if (memory_enable) begin
                 if (control_signals.read_memory_access || control_signals.write_memory_access) begin
                     if (
@@ -137,15 +145,15 @@ decache data_cache (
                     // is yet to use the values - LH
                     
                     ) begin
-                        cache_request_address = alu_data;
-                        cache_request_ready = 1;
+                        decache_request_address = alu_data;
+                        decache_request_ready = 1;
                     end
 
 
                     //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 
 
                     if (decache_result_ready) begin // CLK 2
-                        cache_request_ready = 0;
+                        decache_request_ready = 0;
                         memory_done = 1;
                     end
                     
