@@ -39,15 +39,14 @@ module InstructionDecoder (
                 //decode_complete_next = 0;
             end else if (instruction != 64'b0) begin
                 opcode = instruction[6:0];
-                rd = 5'b0;
-                rs1 = 5'b0;
-                rs2 = 5'b0;
-                funct3 = 3'b0;
-                funct7 = 7'b0;
-                imm = 64'b0; // Default to zero
-                shamt = 64'b0; // Default to zero
-                data_size = 3'b0;
-                instruction_type = 8'b11111111; // Default to unknown
+                // rd = 5'b0;
+                // rs1 = 5'b0;
+                // rs2 = 5'b0;
+                // funct3 = 3'b0;
+                // funct7 = 7'b0;
+                // imm = 64'b0; // Default to zero
+                // shamt = 64'b0; // Default to zero
+                // instruction_type = 8'b11111111; // Default to unknown
 
                 // Decoding based on opcode
                 case (opcode)

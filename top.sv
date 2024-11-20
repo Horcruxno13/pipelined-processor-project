@@ -78,7 +78,9 @@ logic initial_selector;
 
 
 logic [63:0] register [31:0];
-
+// logic register_busy [31:0];
+logic [4:0] destination_reg;
+logic raw_dependency;
 
 logic reg_write_enable;
 logic [4:0] reg_write_addr;
@@ -94,16 +96,19 @@ logic data_cache_reading;
 register_file registerFile(
     .clk(clk),
     .reset(reset),
+    .stackptr(stackptr),
     .read_addr1(read_addr1),
     .read_addr2(read_addr2),
+    .read_data1(read_data1),
+    .read_data2(read_data2),
     .write_enable(reg_write_enable),
     .write_addr(reg_write_addr),
     .write_data(reg_write_data),
-    .read_data1(read_data1),
-    .read_data2(read_data2),
     .write_complete(write_complete),
     .register(register),
-    .stackptr(stackptr)
+    // .register_busy(register_busy),
+    .destination_reg(destination_reg),
+    .raw_dependency(raw_dependency)
 );
 
 // Assign initial PC value from entry point
@@ -221,7 +226,8 @@ register_file registerFile(
         .rs2(id_ex_reg_b_addr),      // Example output: reg_b
         .register_values_ready(register_values_ready),
         .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
-        .decode_complete(decode_done)
+        .decode_complete(decode_done),
+        .rd(destination_reg)
     );
 
     // ID/EX Pipeline Register Logic (between Decode and Execute stages)
@@ -239,26 +245,43 @@ register_file registerFile(
                 id_ex_reg_a_data <= 64'b0;
                 id_ex_reg_b_data <= 64'b0;
                 id_ex_valid_reg <= 1'b0;
-                id_ex_control_signal_struct <= '0;
-            end else if (decode_done && decode_enable) begin
+                id_ex_control_signal_struct.imm <= 64'b0;
+                id_ex_control_signal_struct.shamt <= 64'b0;
+                id_ex_control_signal_struct.opcode <= 7'b0;
+                id_ex_control_signal_struct.instruction <= 8'b0;
+                id_ex_control_signal_struct.memory_access <= 0;
+                id_ex_control_signal_struct.jump_signal <= 0;
+                id_ex_control_signal_struct.pc <= 64'b0;
+                id_ex_control_signal_struct.dest_reg <= 5'b0;
+            end else begin
+                if (decode_done) begin
                 // Load fetched instruction into ID/EX pipeline registers
-                id_ex_pc_plus_I_reg <= if_id_pc_plus_i_reg;
-                id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
-                // pass to reg
-                read_addr1 <= id_ex_reg_a_addr;
-                read_addr2 <= id_ex_reg_b_addr;
-                reg_write_enable <= 0;
-                reg_write_addr <= 0;
-                reg_write_data <= 0;
-                write_complete <= 0;
-                if_id_valid_reg <= 0;
-                register_values_ready <= 1'b1;       // Signal next cycle to read data
-            end else if (register_values_ready) begin
-                // Step 2: Latch register file output values to pipeline registers
-                id_ex_reg_a_data <= read_data1;
-                id_ex_reg_b_data <= read_data2;
-                register_values_ready <= 1'b0;       // Clear the flag
-                id_ex_valid_reg <= 1;
+                    id_ex_pc_plus_I_reg <= if_id_pc_plus_i_reg;
+                    id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
+                    // pass to reg
+                    read_addr1 <= id_ex_reg_a_addr;
+                    read_addr2 <= id_ex_reg_b_addr;
+                    reg_write_enable <= 0;
+                    reg_write_addr <= 0;
+                    reg_write_data <= 0;
+                    write_complete <= 0;
+                // id_ex_control_signal_struct.dest_reg <= destination_reg;
+                
+                    if (!raw_dependency) begin
+                        register_values_ready <= 1'b1;       // Signal next cycle to read data
+                    end else begin
+                        register_values_ready <= 1'b0;
+                    end  
+
+                    if (register_values_ready) begin
+                        // Step 2: Latch register file output values to pipeline registers
+                        id_ex_reg_a_data <= read_data1;
+                        id_ex_reg_b_data <= read_data2;
+                        register_values_ready <= 1'b0;       // Clear the flag
+                        id_ex_valid_reg <= 1;
+                        if_id_valid_reg <= 0;
+                    end 
+                end 
             end
         end
     end
@@ -428,8 +451,8 @@ register_file registerFile(
             reg_write_enable <= 0;
         end else begin
                 // pass to reg
-                read_addr1 <= 0;
-                read_addr2 <= 0;
+                // read_addr1 <= 0;
+                // read_addr2 <= 0;
                 reg_write_enable <= wb_write_enable;
                 reg_write_addr <= wb_dest_reg_out_next;
                 reg_write_data <= wb_data_out_next; 
