@@ -40,27 +40,23 @@ module InstructionExecutor (
                 if (alu_data_out == 1) begin  // branch conditions met 
                     pc_I_offset_out = pc_current + control_signals.imm;
                     localJumpSignal = 1;
-                    control_signals_out.jump_signal = localJumpSignal;
                 end else begin          // not met
                     pc_I_offset_out = 64'b0;
                     localJumpSignal = 0;
-                    control_signals_out.jump_signal = localJumpSignal;
                 end
             end else if(control_signals.opcode == 7'b1101111) begin            // JAL J-Type Jump (Unconditional Jump)
                 pc_I_offset_out = pc_current + control_signals.imm;
                 localJumpSignal = 1;
-                control_signals_out.jump_signal = localJumpSignal;
             end else if (control_signals.opcode == 7'b1100111) begin           // I-Type JALR (Unconditional Jump with rs1)
                 pc_I_offset_out = reg_a_contents + control_signals.imm;
                 localJumpSignal = 1;
-                control_signals_out.jump_signal = localJumpSignal;
             end else begin
                 // no branches, just alu which always runs in comb
                 pc_I_offset_out = 64'b0;
                 localJumpSignal = 0;
-                control_signals_out.jump_signal = localJumpSignal;
             end
             control_signals_out = control_signals;
+            control_signals_out.jump_signal = localJumpSignal;
             execute_done = 1;
         end else begin
             // reg_b_data_out = 64'b0;
