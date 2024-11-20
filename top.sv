@@ -195,10 +195,6 @@ register_file registerFile(
                     if_id_instruction_reg <= if_id_instruction_reg_next;
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                     if_id_valid_reg <= 1;
-                end else begin
-                    if (!fetcher_done && if_id_valid_reg && !ex_mem_control_signal_struct.jump_signal) begin
-                        initial_pc <= initial_pc + 4;
-                    end
                 end
             end
         end
@@ -272,6 +268,7 @@ register_file registerFile(
                         id_ex_reg_b_data <= read_data2;
                         register_values_ready <= 1'b0;       // Clear the flag
                         id_ex_valid_reg <= 1;
+                        initial_pc <= initial_pc + 4;
                         if_id_valid_reg <= 0;
                     end 
                 end 
@@ -412,8 +409,6 @@ register_file registerFile(
                 mem_wb_alu_data <= ex_mem_alu_data;
                 mem_wb_valid_reg <= 1;
                 ex_mem_valid_reg <= 0;
-            end else begin
-                mem_wb_valid_reg <= 0;
             end
         end
     end
@@ -449,6 +444,9 @@ register_file registerFile(
                 reg_write_enable <= wb_write_enable;
                 reg_write_addr <= wb_dest_reg_out_next;
                 reg_write_data <= wb_data_out_next; 
+                /* if (write_complete) begin
+                    mem_wb_valid_reg <= 0;
+                end */
         end
     end
 
