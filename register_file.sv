@@ -88,6 +88,7 @@ module register_file
     output [DATA_WIDTH-1:0] register [31:0],
     // output logic [31:0] register_busy,                        // Busy status for each register
     input [ADDR_WIDTH-1:0] destination_reg,
+    input [ADDR_WIDTH-1:0] reset_write_addr,
     output logic raw_dependency
 );
 
@@ -125,11 +126,16 @@ module register_file
 
     // Mark register as busy when a write is scheduled
     always_ff @(posedge clk) begin
+        if (reset_write_addr) begin
+            register_busy[reset_write_addr] <= 1'b0; // Set busy bit
+        end
+    end
+
+    always_ff @(posedge clk) begin
         if (destination_reg) begin
             register_busy[destination_reg] <= 1'b1; // Set busy bit
         end
     end
-
     // Async Read
     always_comb begin
         // Output register data only if it is not busy

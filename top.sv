@@ -84,6 +84,7 @@ logic raw_dependency;
 
 logic reg_write_enable;
 logic [4:0] reg_write_addr;
+logic [4:0] reg_reset_busy_addr;
 logic [63:0] reg_write_data;
 logic [4:0] read_addr1, read_addr2;
 logic [63:0] read_data1, read_data2;
@@ -108,7 +109,8 @@ register_file registerFile(
     .register(register),
     // .register_busy(register_busy),
     .destination_reg(destination_reg),
-    .raw_dependency(raw_dependency)
+    .raw_dependency(raw_dependency),
+    .reset_write_addr(reg_reset_busy_addr)
 );
 
 // Assign initial PC value from entry point
@@ -182,6 +184,7 @@ register_file registerFile(
                 if_id_pc_plus_i_reg <= 64'b0;
                 if_id_valid_reg <= 0;
                 fetch_reset_done <= 1'b1;       
+                reg_reset_busy_addr <= destination_reg;
                 if (fetch_reset_done) begin
                     fetch_enable <= 1;
                     decode_enable <= 1;
@@ -250,10 +253,14 @@ register_file registerFile(
                     // pass to reg
                     read_addr1 <= id_ex_reg_a_addr;
                     read_addr2 <= id_ex_reg_b_addr;
-                    reg_write_enable <= 0;
+
+
+                    /* reg_write_enable <= 0;
                     reg_write_addr <= 0;
                     reg_write_data <= 0;
-                    write_complete <= 0;
+
+
+                    write_complete <= 0; */
                 // id_ex_control_signal_struct.dest_reg <= destination_reg;
                 
                     if (!raw_dependency) begin
@@ -262,7 +269,7 @@ register_file registerFile(
                         register_values_ready <= 1'b0;
                     end  
 
-                    if (register_values_ready) begin
+                    if (register_values_ready && !raw_dependency) begin
                         // Step 2: Latch register file output values to pipeline registers
                         id_ex_reg_a_data <= read_data1;
                         id_ex_reg_b_data <= read_data2;
@@ -444,9 +451,9 @@ register_file registerFile(
                 reg_write_enable <= wb_write_enable;
                 reg_write_addr <= wb_dest_reg_out_next;
                 reg_write_data <= wb_data_out_next; 
-                /* if (write_complete) begin
+                if (write_complete) begin
                     mem_wb_valid_reg <= 0;
-                end */
+                end 
         end
     end
 

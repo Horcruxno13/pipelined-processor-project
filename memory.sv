@@ -119,15 +119,15 @@ decache data_cache (
             decache_request_address = 64'b0;
             decache_request_ready = 0;
         end else begin
-            logic memoryCaseVariable = 0;
-            if (memory_enable && control_signals.read_memory_access) begin
-                memoryCaseVariable = 1;
-            end else if (memory_enable && control_signals.write_memory_access) begin
-                memoryCaseVariable = 2;
-            end else if (!memory_enable) begin
-                memoryCaseVariable = 3;
-            end
+            logic[1:0] memoryCaseVariable = 0;
             if (memory_enable) begin
+                if (memory_enable && control_signals.read_memory_access) begin
+                    memoryCaseVariable = 1;
+                end else if (memory_enable && control_signals.write_memory_access) begin
+                    memoryCaseVariable = 2;
+                end else if (!memory_enable) begin
+                    memoryCaseVariable = 3;
+                end
                 if (control_signals.read_memory_access || control_signals.write_memory_access) begin
                     if (
                     !(memory_done && !mem_wb_pipeline_valid)  
