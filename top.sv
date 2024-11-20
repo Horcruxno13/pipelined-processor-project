@@ -245,14 +245,7 @@ register_file registerFile(
                 id_ex_reg_a_data <= 64'b0;
                 id_ex_reg_b_data <= 64'b0;
                 id_ex_valid_reg <= 1'b0;
-                id_ex_control_signal_struct.imm <= 64'b0;
-                id_ex_control_signal_struct.shamt <= 64'b0;
-                id_ex_control_signal_struct.opcode <= 7'b0;
-                id_ex_control_signal_struct.instruction <= 8'b0;
-                id_ex_control_signal_struct.memory_access <= 0;
-                id_ex_control_signal_struct.jump_signal <= 0;
-                id_ex_control_signal_struct.pc <= 64'b0;
-                id_ex_control_signal_struct.dest_reg <= 5'b0;
+                id_ex_control_signal_struct <= '0;
             end else begin
                 if (decode_done) begin
                 // Load fetched instruction into ID/EX pipeline registers
