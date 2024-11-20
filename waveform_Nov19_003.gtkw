@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.66 (w)1999-2015 BSI
-[*] Tue Nov 19 07:11:38 2024
+[*] Wed Nov 20 03:12:40 2024
 [*]
 [dumpfile] "/home/angadsingh/pipelined-processor-project/trace.vcd"
-[dumpfile_mtime] "Tue Nov 19 06:09:23 2024"
-[dumpfile_size] 82511096
+[dumpfile_mtime] "Wed Nov 20 03:12:32 2024"
+[dumpfile_size] 12685061
 [savefile] "/home/angadsingh/pipelined-processor-project/waveform_Nov19_003.gtkw"
-[timestart] 113470
-[size] 1223 744
+[timestart] 53490
+[size] 1281 739
 [pos] -1 -1
-*-11.983127 116200 106960 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-11.983127 56680 106960 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.top.
 [treeopen] TOP.top.instructionExecutor.
@@ -18,9 +18,9 @@
 [treeopen] TOP.top.instructionMemoryHandler.
 [treeopen] TOP.top.registerFile.
 [sst_width] 210
-[signals_width] 518
+[signals_width] 430
 [sst_expanded] 1
-[sst_vpaned_height] 265
+[sst_vpaned_height] 284
 @28
 TOP.top.clk
 TOP.top.reset
@@ -99,14 +99,42 @@ TOP.top.instructionExecutor.ALU_unit.result[63:0]
 @200
 -
 -
+-
+@28
+[color] 3
+TOP.top.instructionMemoryHandler.clk
+@200
+-DATA CACHE SIGNALS
+@22
+TOP.top.instructionMemoryHandler.data_cache.address[63:0]
+TOP.top.instructionMemoryHandler.cache_request_address[63:0]
+@28
+TOP.top.instructionMemoryHandler.cache_request_ready
+[color] 1
+TOP.top.instructionMemoryHandler.cache_result_ready
+@29
+TOP.top.instructionFetcher.cache_result_ready
+@200
+-
+-
+-DONE SIGNALS
+@28
+TOP.top.fetcher_done
+[color] 3
+TOP.top.if_id_valid_reg
+TOP.top.decode_done
+TOP.top.execute_done
+TOP.top.memory_done
+@200
+-
 -REGISTER DATA
+@22
+TOP.top.registerFile.stackptr[63:0]
 @24
 TOP.top.register(0)[63:0]
 @22
 TOP.top.register(1)[63:0]
-@24
 TOP.top.registerFile.register(2)[63:0]
-@22
 TOP.top.registerFile.register(3)[63:0]
 @24
 TOP.top.registerFile.register(4)[63:0]
@@ -117,9 +145,8 @@ TOP.top.registerFile.register(8)[63:0]
 TOP.top.registerFile.register(9)[63:0]
 @420
 TOP.top.registerFile.register(10)[63:0]
-@25
-TOP.top.registerFile.register(11)[63:0]
 @24
+TOP.top.registerFile.register(11)[63:0]
 TOP.top.registerFile.register(12)[63:0]
 TOP.top.registerFile.register(13)[63:0]
 TOP.top.registerFile.register(14)[63:0]
@@ -205,17 +232,6 @@ TOP.top.mux_selector
 [color] 1
 TOP.top.instructionFetcher.cache_request_address[63:0]
 @200
--
--DONE SIGNALS
-@28
-TOP.top.fetcher_done
-[color] 3
-TOP.top.if_id_valid_reg
-TOP.top.decode_done
-TOP.top.execute_done
-TOP.top.memory_done
-@200
--
 -
 @28
 [color] 1

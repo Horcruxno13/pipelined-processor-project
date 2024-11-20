@@ -60,13 +60,7 @@ module InstructionExecutor (
                 localJumpSignal = 0;
                 control_signals_out.jump_signal = localJumpSignal;
             end
-            control_signals_out.imm = control_signals.imm;
-            control_signals_out.shamt = control_signals.shamt;
-            control_signals_out.opcode = control_signals.opcode;
-            control_signals_out.instruction = control_signals.instruction;
-            control_signals_out.memory_access = control_signals.memory_access;
-            control_signals_out.dest_reg = control_signals.dest_reg;
-            control_signals_out.pc = control_signals.pc;
+            control_signals_out = control_signals;
             execute_done = 1;
         end else begin
             // reg_b_data_out = 64'b0;

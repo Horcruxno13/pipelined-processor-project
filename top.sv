@@ -231,14 +231,7 @@ register_file registerFile(
             id_ex_reg_a_data <= 64'b0;
             id_ex_reg_b_data <= 64'b0;
             id_ex_valid_reg <= 1'b0;
-            id_ex_control_signal_struct.imm <= 64'b0;
-            id_ex_control_signal_struct.shamt <= 64'b0;
-            id_ex_control_signal_struct.opcode <= 7'b0;
-            id_ex_control_signal_struct.instruction <= 8'b0;
-            id_ex_control_signal_struct.memory_access <= 0;
-            id_ex_control_signal_struct.jump_signal <= 0;
-            id_ex_control_signal_struct.pc <= 64'b0;
-            id_ex_control_signal_struct.dest_reg <= 5'b0;
+            id_ex_control_signal_struct <= '0;
             decode_enable <= 1;
         end else begin
             if (!decode_enable) begin
@@ -246,14 +239,7 @@ register_file registerFile(
                 id_ex_reg_a_data <= 64'b0;
                 id_ex_reg_b_data <= 64'b0;
                 id_ex_valid_reg <= 1'b0;
-                id_ex_control_signal_struct.imm <= 64'b0;
-                id_ex_control_signal_struct.shamt <= 64'b0;
-                id_ex_control_signal_struct.opcode <= 7'b0;
-                id_ex_control_signal_struct.instruction <= 8'b0;
-                id_ex_control_signal_struct.memory_access <= 0;
-                id_ex_control_signal_struct.jump_signal <= 0;
-                id_ex_control_signal_struct.pc <= 64'b0;
-                id_ex_control_signal_struct.dest_reg <= 5'b0;
+                id_ex_control_signal_struct <= '0;
             end else if (decode_done && decode_enable) begin
                 // Load fetched instruction into ID/EX pipeline registers
                 id_ex_pc_plus_I_reg <= if_id_pc_plus_i_reg;
@@ -307,28 +293,14 @@ register_file registerFile(
             ex_mem_alu_data <= 64'b0;
             ex_mem_pc_plus_I_offset_reg <= 64'b0;
             ex_mem_reg_b_data <= 64'b0;
-            ex_mem_control_signal_struct.imm <= 64'b0;
-            ex_mem_control_signal_struct.shamt <= 64'b0;
-            ex_mem_control_signal_struct.opcode <= 7'b0;
-            ex_mem_control_signal_struct.instruction <= 8'b0;
-            ex_mem_control_signal_struct.memory_access <= 0;
-            ex_mem_control_signal_struct.jump_signal <= 0;
-            ex_mem_control_signal_struct.dest_reg <= 5'b0;
-            ex_mem_control_signal_struct.pc <= 64'b0;
+            ex_mem_control_signal_struct <= '0;
             execute_enable <= 1;
         end else begin
             if (!execute_enable) begin
                 ex_mem_alu_data <= 64'b0;
                 ex_mem_pc_plus_I_offset_reg <= 64'b0;
                 ex_mem_reg_b_data <= 64'b0;
-                ex_mem_control_signal_struct.imm <= 64'b0;
-                ex_mem_control_signal_struct.shamt <= 64'b0;
-                ex_mem_control_signal_struct.opcode <= 7'b0;
-                ex_mem_control_signal_struct.instruction <= 8'b0;
-                ex_mem_control_signal_struct.memory_access <= 0;
-                ex_mem_control_signal_struct.jump_signal <= 0;
-                ex_mem_control_signal_struct.dest_reg <= 5'b0;
-                ex_mem_control_signal_struct.pc <= 64'b0;
+                ex_mem_control_signal_struct <= '0;
             end else if (execute_done && execute_enable) begin
                 // Load decoded instruction into EX/MEM pipeline registers
                 ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
@@ -400,13 +372,7 @@ register_file registerFile(
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            mem_wb_control_signals_reg.imm <= 64'b0;
-            mem_wb_control_signals_reg.shamt <= 64'b0;
-            mem_wb_control_signals_reg.opcode <= 7'b0;
-            mem_wb_control_signals_reg.instruction <= 8'b0;
-            mem_wb_control_signals_reg.memory_access <= 0;
-            mem_wb_control_signals_reg.jump_signal <= 0;
-            mem_wb_control_signals_reg.pc <= 64'b0;
+            mem_wb_control_signals_reg <= '0;
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
             memory_enable <= 1;

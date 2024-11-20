@@ -21,6 +21,7 @@ module InstructionDecoder (
 
     logic [2:0] funct3;
     logic [6:0] funct7;
+    logic [2:0] data_size;
 
     // Decoding logic purely combinational
     always_comb begin
@@ -34,6 +35,7 @@ module InstructionDecoder (
                 imm = 64'b0; // Default to zero
                 shamt = 64'b0; // Default to zero
                 instruction_type = 8'b0; // Default to unknown
+                data_size = 3'b0;
                 //decode_complete_next = 0;
             end else if (instruction != 64'b0) begin
                 opcode = instruction[6:0];
@@ -44,6 +46,7 @@ module InstructionDecoder (
                 funct7 = 7'b0;
                 imm = 64'b0; // Default to zero
                 shamt = 64'b0; // Default to zero
+                data_size = 3'b0;
                 instruction_type = 8'b11111111; // Default to unknown
 
                 // Decoding based on opcode
@@ -156,10 +159,22 @@ module InstructionDecoder (
                             // $display("IMM: %d", imm);
 
                             case(funct3)
-                                3'b000: instruction_type = 8'd43;   // SB (new value)
-                                3'b001: instruction_type = 8'd44;   // SH (new value)
-                                3'b010: instruction_type = 8'd45;   // SW (new value)
-                                3'b011: instruction_type = 8'd46;   // SD (new value)
+                                3'b000:begin
+                                    instruction_type = 8'd43; // SB (new value)
+                                    data_size = 8;           // Store Byte: 8 bits
+                                end
+                                3'b001:begin
+                                    instruction_type = 8'd44; // SH (new value)
+                                    data_size = 16;           // Store Halfword: 16 bits
+                                end
+                                3'b010:begin
+                                    instruction_type = 8'd45; // SW (new value)
+                                    data_size = 32;           // Store Word: 32 bits
+                                end
+                                3'b011:begin
+                                    instruction_type = 8'd46; // SD (new value)
+                                    data_size = 64;           // Store Doubleword: 64 bits
+                                end
                                 default: instruction_type = 8'b11111111;  // New value for unknown Store
                             endcase
                         end
@@ -243,13 +258,34 @@ module InstructionDecoder (
                             rs1     = instruction[19:15];    // Source Register 1
                             rd      = instruction[11:7]; 
                             case(funct3)
-                                3'b000: instruction_type = 8'd59; // LB (new value)
-                                3'b001: instruction_type = 8'd60; // LH (new value)
-                                3'b010: instruction_type = 8'd61; // LW (new value)
-                                3'b100: instruction_type = 8'd62; // LBU (new value)
-                                3'b101: instruction_type = 8'd63; // LHU (new value)
-                                3'b110: instruction_type = 8'd64; // LWU (new value)
-                                3'b011: instruction_type = 8'd65; // LD (new value)
+                                3'b000:begin
+                                    instruction_type = 8'd59; // LB (new value)
+                                    data_size = 8;           // Load Byte: 8 bits
+                                end
+                                3'b001:begin
+                                    instruction_type = 8'd60; // LH (new value)
+                                    data_size = 16;           // Load Halfword: 16 bits
+                                end
+                                3'b010:begin
+                                    instruction_type = 8'd61; // LW (new value)
+                                    data_size = 32;           // Load Word: 32 bits
+                                end
+                                3'b100:begin 
+                                    instruction_type = 8'd62; // LBU (new value)
+                                    data_size = 8;            // Load Byte Unsigned: 8 bits
+                                end
+                                3'b101:begin 
+                                    instruction_type = 8'd63; // LHU (new value)
+                                    data_size = 16;           // Load Halfword Unsigned: 16 bits
+                                end
+                                3'b110:begin 
+                                    instruction_type = 8'd64; // LWU (new value)
+                                    data_size = 32;           // Load Word Unsigned: 32 bits
+                                end
+                                3'b011:begin 
+                                    instruction_type = 8'd65; // LD (new value)
+                                    data_size = 64;           // Load Doubleword: 64 bits
+                                end
                             endcase
                         end
 
@@ -322,12 +358,15 @@ module InstructionDecoder (
                     control_signals_out.imm = imm;
                     control_signals_out.opcode = opcode;
                     control_signals_out.shamt = shamt;
+                    control_signals_out.data_size = data_size;
                     control_signals_out.instruction = instruction_type;
                     //loads and stores
-                    if (opcode == 7'b0000011 || opcode == 7'b0100011) begin
-                        control_signals_out.memory_access = 1;
-                    end else begin
-                        control_signals_out.memory_access = 0;
+                    if (opcode == 7'b0000011) begin
+                        control_signals_out.write_memory_access = 0;
+                        control_signals_out.read_memory_access = 1;
+                    end else if (opcode == 7'b0100011) begin
+                        control_signals_out.write_memory_access = 1;
+                        control_signals_out.read_memory_access = 0;
                     end
                     control_signals_out.dest_reg = rd;
                     control_signals_out.pc = pc_current + 4;
@@ -345,6 +384,7 @@ module InstructionDecoder (
             shamt = 64'b0; // Default to zero
             instruction_type = 8'b0; // Default to unknown
             decode_complete = 0;
+            data_size = 3'b0;
         end
         
     end

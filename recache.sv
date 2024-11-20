@@ -246,8 +246,8 @@ always_comb begin
     else begin
     case (current_state)
         IDLE_HIT: begin
-            m_axi_arvalid = 0;
-            m_axi_rready = 0;
+            // m_axi_arvalid = 0;
+            // m_axi_rready = 0;
             data_retrieved_next = 0;
             instruction_cache_reading = 0;
             if (read_enable && !check_done) begin
@@ -301,6 +301,8 @@ always_comb begin
         end
 
         STORE_DATA: begin
+            m_axi_arvalid = 0;
+            m_axi_rready = 0;
             instruction_cache_reading = 0;
             set_index_next = modified_address[block_offset_width + set_index_width - 1 : block_offset_width];
             tag_next = modified_address[addr_width-1 : addr_width - tag_width];

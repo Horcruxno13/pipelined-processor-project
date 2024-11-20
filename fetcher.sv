@@ -31,13 +31,13 @@ module InstructionFetcher (
 );
 
 // Internal wires and registers (if needed)
-logic cache_request_ready;
-logic cache_result_ready;
+logic recache_request_ready;
+logic recache_result_ready;
 
     recache instruction_cache (
         .clock(clk),
         .reset(reset),
-        .read_enable(cache_request_ready), //input that fetcher send
+        .read_enable(recache_request_ready), //input that fetcher send
         .address(cache_request_address), // input that fetcher sends
         .m_axi_arready(m_axi_arready),
         .m_axi_rvalid(m_axi_rvalid),
@@ -50,7 +50,7 @@ logic cache_result_ready;
         .m_axi_rready(m_axi_rready),
         .m_axi_arburst(m_axi_arburst),
         .data_out(instruction_out),
-        .send_enable(cache_result_ready),
+        .send_enable(recache_result_ready),
         .instruction_cache_reading(instruction_cache_reading), // Instruction cache is not in reading mode
         .data_cache_reading(data_cache_reading)        // Not currently reading data cache
     );  
@@ -63,7 +63,7 @@ always_comb begin
     if (reset) begin
         fetcher_done = 0;
         cache_request_address  = 64'b0;
-        cache_request_ready = 0;
+        recache_request_ready = 0;
     end else begin
         if (fetch_enable) begin // clk 1
             if (
@@ -84,13 +84,13 @@ always_comb begin
                 
                 ) begin
                 cache_request_address = select_target ? target_address : pc_current;
-                cache_request_ready = 1;
+                recache_request_ready = 1;
             end
 
             //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 
 
-            if (cache_result_ready) begin // CLK 2
-                cache_request_ready = 0;
+            if (recache_result_ready) begin // CLK 2
+                recache_request_ready = 0;
                 fetcher_done = 1;
             end
             
@@ -101,7 +101,7 @@ always_comb begin
             //WAITING GAP - 3 starts because of this  - WAITING FOR THE PV TO BECOME ZERO ALSO 
             end
         end else begin // in next clk
-            cache_request_ready = 0;
+            recache_request_ready = 0;
             fetcher_done = 0;
         end
     end

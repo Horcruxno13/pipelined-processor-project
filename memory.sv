@@ -47,17 +47,26 @@ module InstructionMemoryHandler (
 );
 
 logic cache_request_ready;
-logic cache_result_ready;
+logic decache_result_ready;
 logic [63:0] cache_request_address;
+
+/*
+.clock(clk),
+    .reset(reset),
+    .read_enable(control_signals.read_memory_access),              // Fetcher signals no read - LOAD INSTRUCTION
+    .write_enable(control_signals.write_memory_access),             // Write enable is active - STORE INSTRUCTION
+    .address(cache_request_address),            // Address from ALU result
+    .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
+    .data_input(reg_b_contents),      */
 
 decache data_cache (
     .clock(clk),
     .reset(reset),
-    .read_enable(1'b0),              // Fetcher signals no read
-    .write_enable(1'b1),             // Write enable is active
-    .address(64'b0),            // Address from ALU result
-    .data_size(3'b100),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
-    .data_input(64'b0),              // Placeholder for data to write, if needed
+    .read_enable(control_signals.read_memory_access),              // Fetcher signals no read
+    .write_enable(1'b0),             // Write enable is active
+    .address(cache_request_address),            // Address from ALU result
+    .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
+    .data_input(reg_b_contents),              // Placeholder for data to write, if needed
 
     // AXI interface for read transactions
     .m_axi_arready(m_axi_arready),
@@ -89,7 +98,7 @@ decache data_cache (
 
     // Data output and control signals
     .data(instruction_out),          // Output to CPU (instruction data)
-    .send_enable(cache_result_ready),// Indicates data is ready to send
+    .send_enable(decache_result_ready),// Indicates data is ready to send
 
     // AXI Control
     .instruction_cache_reading(instruction_cache_reading),// Instruction cache is not in reading mode
@@ -111,7 +120,7 @@ decache data_cache (
             cache_request_ready = 0;
         end else begin
             if (memory_enable) begin
-                if (control_signals.memory_access) begin
+                if (control_signals.read_memory_access || control_signals.write_memory_access) begin
                     if (
                     !(memory_done && !mem_wb_pipeline_valid)  
                     // case where we are waiting for a latch - HL
@@ -135,7 +144,7 @@ decache data_cache (
 
                     //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 
 
-                    if (cache_result_ready) begin // CLK 2
+                    if (decache_result_ready) begin // CLK 2
                         cache_request_ready = 0;
                         memory_done = 1;
                     end
