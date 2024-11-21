@@ -263,14 +263,25 @@ register_file registerFile(
                     // pass to reg
                     read_addr1 <= id_ex_reg_a_addr;
                     read_addr2 <= id_ex_reg_b_addr;
+
+                    //if this current instruction has matching rd, rs1
+
+
                 
-                    if (!raw_dependency) begin
-                        register_values_ready <= 1'b1;       // Signal next cycle to read data
+                    if (raw_dependency) begin
+                        register_values_ready <= 1'b0;       // Signal next cycle to read data
                     end else begin
-                        register_values_ready <= 1'b0;
+                        register_values_ready <= 1'b1;
                     end  
 
-                    if (register_values_ready && !raw_dependency) begin
+                    if (
+                        (
+                            register_values_ready && !raw_dependency) 
+                            || 
+
+                            (raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg))
+                        
+                        ) begin
                         // Step 2: Latch register file output values to pipeline registers
                         id_ex_reg_a_data <= read_data1;
                         id_ex_reg_b_data <= read_data2;

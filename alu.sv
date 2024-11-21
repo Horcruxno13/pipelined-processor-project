@@ -156,15 +156,33 @@ always_comb begin
 			end
 
 			8'd19: begin // XORI
-				result = rs1 ^ imm;  
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+				
+				result = rs1 ^ $signed(signed_imm);  
 			end
 
 			8'd20: begin // ORI
-				result = rs1 | imm;
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+
+				result = rs1 | $signed(signed_imm);
 			end
 
 			8'd21: begin // ANDI
-				result = rs1 & imm;  
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+
+				result = rs1 & $signed(signed_imm);  
 			end
 
 			// 8'd22: begin // SLLI
@@ -180,11 +198,23 @@ always_comb begin
 			// end
 
 			8'd25: begin // SLTI
-				result = (rs1 < imm) ? 1 : 0;
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+
+				result = (rs1 < $signed(signed_imm)) ? 1 : 0;
 			end
 
 			8'd26: begin // SLTIU
-				result = (rs1 < imm) ? 1 : 0;
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+
+				result = (rs1 < $signed(signed_imm)) ? 1 : 0;
 			end
 
 		// RV32M
@@ -312,7 +342,14 @@ always_comb begin
 
 		 //AUIPC: Add Upper Immediate to Program Counter Value
 		 	8'd56 : begin
-				result = pc_alu + (imm << 12);
+				// Extract the lower 12 bits of the immediate
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				logic signed [63:0] signed_imm;
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+
+				result = pc_alu + ($signed(signed_imm) << 12);
 			end
 
 			// Load Instructions
