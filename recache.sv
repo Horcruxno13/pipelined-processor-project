@@ -214,8 +214,13 @@ always_comb begin
 
         STORE_DATA: begin
             // Return to IDLE_HIT after storing data
-            next_state = (replace_line) ? REPLACE_DATA : STORE_DATA;
-            next_state = (data_stored) ? SEND_DATA : STORE_DATA;
+            if (replace_line) begin
+                next_state = REPLACE_DATA;
+            end else if (data_stored) begin
+                next_state = SEND_DATA;
+            end else begin
+                next_state = STORE_DATA;
+            end
         end
 
         SEND_DATA: begin
@@ -322,7 +327,7 @@ always_comb begin
 
         SEND_DATA: begin
             // TODO: TEMPORARY FIX
-            data_out = cache_data[set_index][empty_way][(block_offset) * 32 +: 32]; 
+            data_out = cache_data[set_index][empty_way_next][(block_offset) * 32 +: 32]; 
             send_enable_next = 1;
             if (!read_enable) begin
                 send_enable_next = 0;
