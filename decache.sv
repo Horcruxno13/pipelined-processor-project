@@ -51,6 +51,7 @@ module decache #(
     output logic m_axi_acready,                     // Snoop request ready
     input  logic [addr_width-1:0] m_axi_acaddr,     // Snoop address
     input  logic [3:0] m_axi_acsnoop,               // Snoop type
+    output logic stall_core,
 
     // Data output and control signals
     output logic [63:0] data_out,                  // Data output to CPU
@@ -143,6 +144,10 @@ logic [$clog2(ways)-1:0] counter;
 integer data_size_temp = 32; 
 integer block_number;
 integer i;
+
+logic invalidation_check_done;
+logic cache_invalidated;
+logic [addr_width-1:0] ac_address;
 // State register update (sequential block)
 
 always_ff @(posedge clock) begin
@@ -277,6 +282,7 @@ always_ff @(posedge clock) begin
             end
 
             AC_SNOOP: begin
+
             end
         endcase
     end
@@ -288,7 +294,13 @@ always_comb begin
     case (current_state)
         IDLE_HIT: begin
             // Transition to MISS_REQUEST if cache miss
-            next_state = (!cache_hit && check_done && !instruction_cache_reading) ? MISS_REQUEST : IDLE_HIT;
+            if (!cache_hit && check_done && !instruction_cache_reading) begin
+                next_state = MISS_REQUEST;
+            end else if (m_axi_acvalid) begin
+                next_state = AC_SNOOP;
+            end else begin
+                next_state = IDLE_HIT;
+            end
         end
 
         MISS_REQUEST: begin
@@ -313,6 +325,8 @@ always_comb begin
                 next_state = SEND_DATA;
             end else if (write_enable && data_stored) begin
                 next_state = WRITE_MISS;
+            end else if (cache_invalidated && data_stored) begin
+                next_state = IDLE_HIT;
             end else begin
                 next_state = STORE_DATA;  // Default case
             end
@@ -362,8 +376,15 @@ always_comb begin
         end
 
         AC_SNOOP: begin
-        
+            if (cache_invalidated && invalidation_check_done) begin
+                next_state = MISS_REQUEST;
+            end else if (!cache_invalidated && invalidation_check_done) begin
+                next_state = IDLE_HIT;
+            end else begin
+                next_state = AC_SNOOP;
+            end
         end
+        
         default: next_state = IDLE_HIT;
     endcase
 end
@@ -457,10 +478,24 @@ always_comb begin
                     send_enable_next = 1;
                 end 
                 
+                if (m_axi_acvalid) begin
+                    stall_core = 1;
+                end
+
+                if (cache_invalidated || invalidation_check_done) begin
+                    cache_invalidated = 0;
+                    invalidation_check_done = 0;
+                    stall_core = 0;
+                end  
             end 
 
             MISS_REQUEST: begin
-                modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
+                if (!cache_invalidated) begin 
+                    modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
+                end 
+                else begin
+                    modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
+                end 
                 m_axi_arvalid = 1;
                 m_axi_arlen = 7;
                 m_axi_arsize = 3;
@@ -563,9 +598,28 @@ always_comb begin
             end
             
             AC_SNOOP: begin
-            
+                if (m_axi_acvalid && m_axi_acsnoop == 4'b1101) begin
+                    ac_address = m_axi_acaddr;
+                    set_index = ac_address[block_offset_width +: set_index_width];
+                    tag = ac_address[addr_width-1:addr_width-tag_width];
+                    for (int i = 0; i < ways; i++) begin
+                        if (tags[set_index][i] == tag) begin
+                            valid_bits[set_index][i] = 0;  // Invalidate the cache line
+                            cache_invalidated = 1;
+                        end
+                    end
+                    invalidation_check_done = 1;
+                end
+
+                if (m_axi_acsnoop != 4'b1101) begin
+                    invalidation_check_done = 1;
+                end 
+                
+                if (invalidation_check_done) begin
+                    m_axi_acready = 1;
+                end
             end
-            
+
             default: begin
                 data_out = 0;
                 check_done = 0;

@@ -96,6 +96,8 @@ logic [31:0] memory_data;          // Data from memory
 logic [63:0] modified_address;
 integer empty_way;
 integer empty_way_next;
+integer set;
+integer way;
 logic data_stored;
 logic way_cleaned;
 logic replace_line;
@@ -123,6 +125,13 @@ always_ff @(posedge clock) begin
         buffer_pointer <= 0;
         burst_counter <= 0;
         data_received_mem <= 0;
+        for (set = 0; set < sets; set = set + 1) begin
+            for (way = 0; way < ways; way = way + 1) begin
+                tags[set][way] <= {tag_width{1'b0}};         // Initialize tags to 0
+                cache_data[set][way] <= {cache_line_size{1'b0}}; // Initialize cache data to 0
+                valid_bits[set][way] <= 1'b0;               // Initialize valid bits to 0
+            end
+        end
   	end else begin
         // Update current state and other variables as per state transitions
         current_state <= next_state;
@@ -251,8 +260,6 @@ always_comb begin
     else begin
     case (current_state)
         IDLE_HIT: begin
-            // m_axi_arvalid = 0;
-            // m_axi_rready = 0;
             data_retrieved_next = 0;
             instruction_cache_reading = 0;
             if (read_enable && !check_done) begin
@@ -274,7 +281,6 @@ always_comb begin
             if (!read_enable) begin
                 check_done = 0;
                 cache_hit = 0;
-                // data_out = 0;
                 send_enable_next = 0;
             end          
         end
@@ -297,12 +303,9 @@ always_comb begin
         MEMORY_ACCESS: begin
             current_transfer_value = m_axi_rdata;
             if (data_received_mem) begin
-                // m_axi_rready = 0;
                 data_retrieved_next = 1;
             end
             empty_way_next = -1;
-
-            //todo - make sure that the emptyway next ki value is 0 in this earlier staate
         end
 
         STORE_DATA: begin
@@ -326,12 +329,10 @@ always_comb begin
         end
 
         SEND_DATA: begin
-            // TODO: TEMPORARY FIX
             data_out = cache_data[set_index][empty_way_next][(block_offset) * 32 +: 32]; 
             send_enable_next = 1;
             if (!read_enable) begin
                 send_enable_next = 0;
-                // data_out = 0;
                 check_done = 0;
             end
         end
