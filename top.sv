@@ -92,6 +92,9 @@ logic [63:0] read_data1, read_data2;
 logic instruction_cache_reading;
 logic data_cache_reading;
 
+logic upstream_disable;
+logic downstream_disable;
+
 
 
 register_file registerFile(
@@ -178,6 +181,8 @@ register_file registerFile(
             mux_selector <= 0;
             fetch_enable <= 1;
             fetch_reset_done <= 0;
+            upstream_disable <= 0;
+            downstream_disable <= 0;
         end else begin
             if (!fetch_enable) begin
                 if_id_instruction_reg <= 32'b0;
@@ -191,6 +196,7 @@ register_file registerFile(
                     execute_enable <= 1;
                     memory_enable <= 1;
                     fetch_reset_done <= 1'b0;       // Clear the flag
+                    upstream_disable <= 0;
                 end
             end else begin
                 if (fetcher_done) begin
@@ -239,7 +245,7 @@ register_file registerFile(
             id_ex_control_signal_struct <= '0;
             decode_enable <= 1;
         end else begin
-            if (!decode_enable) begin
+            if (!decode_enable && upstream_disable) begin
                 id_ex_pc_plus_I_reg <= 64'b0;
                 id_ex_reg_a_data <= 64'b0;
                 id_ex_reg_b_data <= 64'b0;
@@ -253,15 +259,6 @@ register_file registerFile(
                     // pass to reg
                     read_addr1 <= id_ex_reg_a_addr;
                     read_addr2 <= id_ex_reg_b_addr;
-             
-
-                    /* reg_write_enable <= 0;
-                    reg_write_addr <= 0;
-                    reg_write_data <= 0;
-
-
-                    write_complete <= 0; */
-                // id_ex_control_signal_struct.dest_reg <= destination_reg;
                 
                     if (!raw_dependency) begin
                         register_values_ready <= 1'b1;       // Signal next cycle to read data
@@ -316,7 +313,7 @@ register_file registerFile(
             ex_mem_control_signal_struct <= '0;
             execute_enable <= 1;
         end else begin
-            if (!execute_enable) begin
+            if (!execute_enable && upstream_disable) begin
                 ex_mem_alu_data <= 64'b0;
                 ex_mem_pc_plus_I_offset_reg <= 64'b0;
                 ex_mem_reg_b_data <= 64'b0;
@@ -328,8 +325,12 @@ register_file registerFile(
 
                 ex_mem_reg_b_data <= id_ex_reg_b_data;
                 ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
-
+                if (ex_mem_control_signal_struct_next.jump_signal) begin
+                    upstream_disable <= 1;
+                end
                 ex_mem_valid_reg <= 1;
+                execute_enable <= 0;
+                downstream_disable <= 1;
                 id_ex_valid_reg <= 0;
             end
             
@@ -389,6 +390,7 @@ register_file registerFile(
 
 
     // assign memory_ready = ~ex_mem_imm_reg;
+    
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -397,25 +399,30 @@ register_file registerFile(
             mem_wb_alu_data <= 64'b0;
             memory_enable <= 1;
         end else begin
-            if (execute_enable) begin
+            if (downstream_disable) begin
                 target_address <= ex_mem_pc_plus_I_offset_reg;
                 mux_selector <= ex_mem_control_signal_struct.jump_signal;
             end
-            if (execute_enable && ex_mem_control_signal_struct.jump_signal) begin
+            if (downstream_disable && ex_mem_control_signal_struct.jump_signal) begin
                 initial_pc <= ex_mem_pc_plus_I_offset_reg;
                 execute_enable <= 0;
                 decode_enable <= 0;
                 fetch_enable <= 0;
                 memory_enable <= 0;
+                downstream_disable <= 0;
             end
 
-            
             if (memory_done && memory_enable) begin
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;
                 mem_wb_alu_data <= ex_mem_alu_data;
                 mem_wb_valid_reg <= 1;
                 ex_mem_valid_reg <= 0;
+
+                if (!upstream_disable) begin
+                    execute_enable <= 1; //don't want to come in fetcher's way, let that restart things as it was doing
+                    downstream_disable <= 0;
+                end
             end
         end
     end
@@ -451,9 +458,9 @@ register_file registerFile(
                 reg_write_enable <= wb_write_enable;
                 reg_write_addr <= wb_dest_reg_out_next;
                 reg_write_data <= wb_data_out_next;
-                /* if (write_complete) begin
+                if (write_complete) begin
                     mem_wb_valid_reg <= 0;
-                end  */
+                end 
         end
     end
 

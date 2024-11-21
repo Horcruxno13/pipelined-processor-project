@@ -97,7 +97,7 @@ decache data_cache (
     .m_axi_bready(m_axi_bready),             // Ready to accept write responses
 
     // Data output and control signals
-    .data(instruction_out),          // Output to CPU (instruction data)
+    .data_out(instruction_out),          // Output to CPU (instruction data)
     .send_enable(decache_result_ready),// Indicates data is ready to send
 
     // AXI Control
