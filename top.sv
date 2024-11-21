@@ -93,7 +93,8 @@ logic instruction_cache_reading;
 logic data_cache_reading;
 
 logic upstream_disable;
-logic downstream_disable;
+logic execute_disable;
+logic memory_disable;
 
 
 
@@ -182,13 +183,14 @@ register_file registerFile(
             fetch_enable <= 1;
             fetch_reset_done <= 0;
             upstream_disable <= 0;
-            downstream_disable <= 0;
+            execute_disable <= 0;
         end else begin
             if (!fetch_enable) begin
                 if_id_instruction_reg <= 32'b0;
                 if_id_pc_plus_i_reg <= 64'b0;
                 if_id_valid_reg <= 0;
-                fetch_reset_done <= 1'b1;       
+                fetch_reset_done <= 1'b1;    
+                mux_selector <= 0;   
                 reg_reset_busy_addr <= destination_reg;
                 if (fetch_reset_done) begin
                     fetch_enable <= 1;
@@ -330,7 +332,7 @@ register_file registerFile(
                 end
                 ex_mem_valid_reg <= 1;
                 execute_enable <= 0;
-                downstream_disable <= 1;
+                execute_disable <= 1;
                 id_ex_valid_reg <= 0;
             end
             
@@ -399,17 +401,17 @@ register_file registerFile(
             mem_wb_alu_data <= 64'b0;
             memory_enable <= 1;
         end else begin
-            if (downstream_disable) begin
+            if (execute_disable) begin
                 target_address <= ex_mem_pc_plus_I_offset_reg;
                 mux_selector <= ex_mem_control_signal_struct.jump_signal;
             end
-            if (downstream_disable && ex_mem_control_signal_struct.jump_signal) begin
+            if (execute_disable && ex_mem_control_signal_struct.jump_signal) begin
                 initial_pc <= ex_mem_pc_plus_I_offset_reg;
                 execute_enable <= 0;
                 decode_enable <= 0;
                 fetch_enable <= 0;
                 memory_enable <= 0;
-                downstream_disable <= 0;
+                execute_disable <= 0;
             end
 
             if (memory_done && memory_enable) begin
@@ -417,11 +419,13 @@ register_file registerFile(
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;
                 mem_wb_alu_data <= ex_mem_alu_data;
                 mem_wb_valid_reg <= 1;
+                memory_enable <= 0;
+                memory_disable <= 1;
                 ex_mem_valid_reg <= 0;
 
                 if (!upstream_disable) begin
                     execute_enable <= 1; //don't want to come in fetcher's way, let that restart things as it was doing
-                    downstream_disable <= 0;
+                    execute_disable <= 0;
                 end
             end
         end
@@ -452,6 +456,7 @@ register_file registerFile(
             wb_data_out <= 64'b0;
             reg_write_enable <= 0;
         end else begin
+            if (memory_disable) begin
                 // pass to reg
                 // read_addr1 <= 0;
                 // read_addr2 <= 0;
@@ -460,7 +465,10 @@ register_file registerFile(
                 reg_write_data <= wb_data_out_next;
                 if (write_complete) begin
                     mem_wb_valid_reg <= 0;
+                    memory_disable <= 0;
+                    memory_enable <= 1;
                 end 
+            end
         end
     end
 
