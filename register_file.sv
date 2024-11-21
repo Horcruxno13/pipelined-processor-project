@@ -143,6 +143,7 @@ module register_file
             read_data1 = register[read_addr1];
             raw_dep1 = 0;
         end else begin
+            read_data1 = register[read_addr1];
             raw_dep1 = 1;
             //read_data1 = 64'b0; // Default value if the register is busy
         end
@@ -151,6 +152,7 @@ module register_file
             read_data2 = register[read_addr2];
             raw_dep2 = 0;
         end else begin
+            read_data2 = register[read_addr2];
             raw_dep2 = 1;
             //read_data2 = 64'b0; // Default value if the register is busy
         end

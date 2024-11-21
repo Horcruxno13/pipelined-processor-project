@@ -239,6 +239,9 @@ register_file registerFile(
         .rd(destination_reg)
     );
 
+
+    logic flag1;
+    logic flag2;
     // ID/EX Pipeline Register Logic (between Decode and Execute stages)
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -273,6 +276,10 @@ register_file registerFile(
                     end else begin
                         register_values_ready <= 1'b1;
                     end  
+
+                    flag1 = register_values_ready && !raw_dependency;
+                    flag2 = raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg);
+
 
                     if (
                         (
