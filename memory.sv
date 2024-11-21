@@ -129,7 +129,7 @@ decache data_cache (
                     memoryCaseVariable = 3;
                 end
                 if (control_signals.read_memory_access || control_signals.write_memory_access) begin
-                    if (
+                    /* if (
                     !(memory_done && !mem_wb_pipeline_valid)  
                     // case where we are waiting for a latch - HL
                     
@@ -145,9 +145,9 @@ decache data_cache (
                     // is yet to use the values - LH
                     
                     ) begin
-                        decache_request_address = alu_data;
-                        decache_request_ready = 1;
-                    end
+                    end */
+                    decache_request_address = alu_data;
+                    decache_request_ready = 1;
 
 
                     //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 

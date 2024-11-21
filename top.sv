@@ -253,7 +253,7 @@ register_file registerFile(
                     // pass to reg
                     read_addr1 <= id_ex_reg_a_addr;
                     read_addr2 <= id_ex_reg_b_addr;
-
+             
 
                     /* reg_write_enable <= 0;
                     reg_write_addr <= 0;
@@ -450,10 +450,10 @@ register_file registerFile(
                 // read_addr2 <= 0;
                 reg_write_enable <= wb_write_enable;
                 reg_write_addr <= wb_dest_reg_out_next;
-                reg_write_data <= wb_data_out_next; 
-                if (write_complete) begin
+                reg_write_data <= wb_data_out_next;
+                /* if (write_complete) begin
                     mem_wb_valid_reg <= 0;
-                end 
+                end  */
         end
     end
 
