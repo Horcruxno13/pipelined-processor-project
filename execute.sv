@@ -60,7 +60,7 @@ module InstructionExecutor (
             execute_done = 1;
         end else begin
             // reg_b_data_out = 64'b0;
-            alu_data_out = 64'b0;
+            // alu_data_out = 64'b0;
             pc_I_offset_out = 64'b0;
             execute_done = 0;
         end

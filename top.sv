@@ -93,7 +93,7 @@ logic instruction_cache_reading;
 logic data_cache_reading;
 
 logic upstream_disable;
-logic execute_disable;
+logic decache_wait_disable;
 logic memory_disable;
 
 
@@ -183,7 +183,7 @@ register_file registerFile(
             fetch_enable <= 1;
             fetch_reset_done <= 0;
             upstream_disable <= 0;
-            execute_disable <= 0;
+            decache_wait_disable <= 0;
         end else begin
             if (!fetch_enable) begin
                 if_id_instruction_reg <= 32'b0;
@@ -329,10 +329,16 @@ register_file registerFile(
                 ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
                 if (ex_mem_control_signal_struct_next.jump_signal) begin
                     upstream_disable <= 1;
+                    decache_wait_disable <= 0;
+                end else begin
+                    memory_enable <= 0;
+                    execute_enable <= 0;
+                    decode_enable <= 0;
+                    fetch_enable <= 0;
+                    upstream_disable <= 0;
+                    decache_wait_disable <= 1;
                 end
                 ex_mem_valid_reg <= 1;
-                execute_enable <= 0;
-                execute_disable <= 1;
                 id_ex_valid_reg <= 0;
             end
             
@@ -401,17 +407,16 @@ register_file registerFile(
             mem_wb_alu_data <= 64'b0;
             memory_enable <= 1;
         end else begin
-            if (execute_disable) begin
+            if (memory_enable || decache_wait_disable) begin
                 target_address <= ex_mem_pc_plus_I_offset_reg;
                 mux_selector <= ex_mem_control_signal_struct.jump_signal;
             end
-            if (execute_disable && ex_mem_control_signal_struct.jump_signal) begin
+            if (upstream_disable && ex_mem_control_signal_struct.jump_signal) begin
                 initial_pc <= ex_mem_pc_plus_I_offset_reg;
                 execute_enable <= 0;
                 decode_enable <= 0;
                 fetch_enable <= 0;
                 memory_enable <= 0;
-                execute_disable <= 0;
             end
 
             if (memory_done && memory_enable) begin
@@ -424,8 +429,11 @@ register_file registerFile(
                 ex_mem_valid_reg <= 0;
 
                 if (!upstream_disable) begin
+                    fetch_enable <= 1;
+                    decode_enable <= 1;
                     execute_enable <= 1; //don't want to come in fetcher's way, let that restart things as it was doing
-                    execute_disable <= 0;
+                    memory_enable <= 1;//start orgy
+                    decache_wait_disable <= 0;
                 end
             end
         end
@@ -471,99 +479,5 @@ register_file registerFile(
             end
         end
     end
-
-     /*   module InstructionFetcher (
-    input  logic        clk,                // Clock signal
-    input  logic        reset,            // Active-low reset
-    input  logic        fetch_ack,       // Signal to acknowledge collection of outputs
-    input  logic [63:0] pc_current,         // Current PC value (64 bits)
-    input  logic [63:0] target_address,     // Target address for branches/jumps (64 bits)
-    input  logic        select_target,      // Control signal for address selection
-    output logic [63:0] instruction_out,    // Instruction bits fetched from cache (64 bits)
-    output logic [63:0] address_out,        // Address used for fetching (64 bits)
-    output logic        fetcher_done,               // Ready signal indicating fetch completion
-); */
-
-     /*   Fetcher ready logic
-  assign fetch_ready = ~if_id_valid_reg;
-
-    IF/ID Pipeline Register Logic (between Fetch and Decode stages)
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            if_id_instruction_reg <= 32'b0;
-            if_id_pc_plus_i_reg <= 64'b0;
-            if_id_valid_reg <= 1'b0;
-        end else begin
-            if (fetcher_done && fetch_ready) begin
-                // Load fetched instruction into IF/ID pipeline registers
-                if_id_instruction_reg <= if_id_instruction_reg_next;
-                if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
-                if_id_valid_reg <= 1'b1; // Data in IF/ID is valid
-            end
-            // When decode stage reads the data
-            if (decode_ready) begin
-                if_id_valid_reg <= 1'b0; // Clear valid once read by decode
-            end 
-        end
-    end */
-
-    /*
-    // Decoder ready logic
-    // assign decode_ready = ~id_ex_valid_reg || execute_ready;
-    assign decode_ready = ~id_ex_valid_reg;
-
-    // ID/EX Pipeline Register Logic (between Decode and Execute stages)
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            id_ex_pc_plus_1_reg <= 64'b0;
-            id_ex_reg_a_reg <= 64'b0;
-            id_ex_reg_b_reg <= 64'b0;
-            id_ex_control_signals_reg <= 64'b0;
-            id_ex_imm_reg <= 64'b0;
-            id_ex_valid_reg <= 1'b0;
-        end else begin
-            if (decode_done && decode_ready) begin
-                // Load decoded instruction into ID/EX pipeline registers
-                id_ex_pc_plus_1_reg <= id_ex_pc_plus_1_reg_next;
-                id_ex_reg_a_reg <= id_ex_reg_a_reg_next;
-                id_ex_reg_b_reg <= id_ex_reg_b_reg_next;
-                id_ex_control_signals_reg <= id_ex_control_signals_reg_next;
-                id_ex_imm_reg <= id_ex_imm_reg_next;
-                id_ex_valid_reg <= 1'b1; // Data in ID/EX is valid
-            end
-            // When execute stage reads the data
-            //  if (execute_ready) begin
-            //     id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
-            // end 
-        end
-    end
-    
-    
-    // Execute logic ready
-    assign execute_ready = ~id_ex_imm_reg;
-
-    // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
-    always_ff @(posedge clk) begin
-        if (reset) begin
-            ex_mem_alu_data <= 64'b0;
-            ex_mem_pc_plus_I_offset_reg <= 64'b0;
-            ex_mem_control_signals_reg <= 64'b0;
-        end else begin
-            if (execute_done && execute_ready) begin
-                // Load decoded instruction into EX/MEM pipeline registers
-                ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
-                ex_mem_alu_data <= ex_mem_alu_data_next;
-                ex_mem_reg_b_data <= ex_mem_reg_b_data_next;
-                ex_mem_control_signals_reg <= id_ex_control_signal_struct;
-            end
-            // When execute stage reads the data
-/*             if (execute_ready) begin
-                id_ex_valid_reg <= 1'b0; // Clear valid once read by execute
-            end
-        end
-    end
-    
-    */
-  
 endmodule
 
