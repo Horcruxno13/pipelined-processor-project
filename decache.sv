@@ -46,8 +46,14 @@ module decache #(
     output logic m_axi_wlast,                  // Last transfer in the write burst
     output logic m_axi_bready,                 // Ready to accept write response
 
+    // AXI Coherence Interface
+    input  logic m_axi_acvalid,                     // Snoop request valid
+    output logic m_axi_acready,                     // Snoop request ready
+    input  logic [addr_width-1:0] m_axi_acaddr,     // Snoop address
+    input  logic [3:0] m_axi_acsnoop,               // Snoop type
+
     // Data output and control signals
-    output logic [63:0] data,                  // Data output to CPU
+    output logic [63:0] data_out,                  // Data output to CPU
     output logic send_enable,                   // Indicates data is ready to send
 
     // AXI Control
@@ -69,7 +75,8 @@ enum logic [3:0] {
     WRITE_MEMORY_WAIT   = 4'b1000, // Waiting for acknowledgment from memory for write
     WRITE_MEMORY_ACCESS = 4'b1001, // Accessing or preparing data for the write operation
     WRITE_COMPLETE      = 4'b1010,  // Completing the write and updating cache state
-    REPLACE_DATA        = 4'b1011
+    REPLACE_DATA        = 4'b1011,
+    AC_SNOOP            = 4'b1100
 } current_state, next_state;
 
 // Derived parameters
@@ -146,6 +153,9 @@ always_ff @(posedge clock) begin
 end
 
 assign way_to_replace = counter;
+
+// AC SNOOP Logic
+
 
 always_ff @(posedge clock) begin
     if (reset) begin
@@ -265,6 +275,9 @@ always_ff @(posedge clock) begin
                     way_cleaned <= 1;
                 end  
             end
+
+            AC_SNOOP: begin
+            end
         endcase
     end
 end
@@ -294,10 +307,15 @@ always_comb begin
         end
 
         STORE_DATA: begin
-            // Return to IDLE_HIT after storing data
-            next_state = (replace_line) ? REPLACE_DATA : STORE_DATA;
-            next_state = (read_enable && data_stored) ? SEND_DATA : STORE_DATA;
-            next_state = (write_enable && data_stored) ? WRITE_MISS : STORE_DATA;
+            if (replace_line) begin
+                next_state = REPLACE_DATA;
+            end else if (read_enable && data_stored) begin
+                next_state = SEND_DATA;
+            end else if (write_enable && data_stored) begin
+                next_state = WRITE_MISS;
+            end else begin
+                next_state = STORE_DATA;  // Default case
+            end
         end
 
         SEND_DATA: begin
@@ -324,14 +342,27 @@ always_comb begin
         end
 
         WRITE_COMPLETE: begin
-            // Return to IDLE_HIT after completing write operation
-            next_state = (write_data_done && !way_cleaned) ? IDLE_HIT : WRITE_COMPLETE;
-            next_state = (write_data_done && way_cleaned) ? IDLE_HIT : STORE_DATA;
+            if (write_data_done && !way_cleaned) begin
+                next_state = IDLE_HIT;
+            end else if (write_data_done && way_cleaned) begin
+                next_state = IDLE_HIT;
+            end else begin
+                next_state = STORE_DATA; // Default case if no conditions are met
+            end
         end
 
         REPLACE_DATA: begin
-            next_state = (!write_data_to_mem && way_cleaned) ? STORE_DATA : REPLACE_DATA;
-            next_state = (write_data_to_mem && way_cleaned) ? WRITE_REQUEST : REPLACE_DATA;
+            if (!write_data_to_mem && way_cleaned) begin
+                next_state = STORE_DATA;
+            end else if (write_data_to_mem && way_cleaned) begin
+                next_state = WRITE_REQUEST;
+            end else begin
+                next_state = REPLACE_DATA; // Default case if no conditions are met
+            end
+        end
+
+        AC_SNOOP: begin
+        
         end
         default: next_state = IDLE_HIT;
     endcase
@@ -529,6 +560,10 @@ always_comb begin
 
             REPLACE_DATA: begin
                 replace_line = 0;
+            end
+            
+            AC_SNOOP: begin
+            
             end
             
             default: begin
