@@ -18,7 +18,7 @@ module InstructionDecoder (
     output control_signals_struct control_signals_out,
     output logic decode_complete
 );
-
+logic[2:0] controlSignalsDataSize;
     logic [2:0] funct3;
     logic [6:0] funct7;
     logic [2:0] data_size;
@@ -160,19 +160,19 @@ module InstructionDecoder (
                             case(funct3)
                                 3'b000:begin
                                     instruction_type = 8'd43; // SB (new value)
-                                    data_size = 8;           // Store Byte: 8 bits
+                                    data_size = 1;           // Store Byte: 8 bits
                                 end
                                 3'b001:begin
                                     instruction_type = 8'd44; // SH (new value)
-                                    data_size = 16;           // Store Halfword: 16 bits
+                                    data_size = 2;           // Store Halfword: 16 bits
                                 end
                                 3'b010:begin
                                     instruction_type = 8'd45; // SW (new value)
-                                    data_size = 32;           // Store Word: 32 bits
+                                    data_size = 4;           // Store Word: 32 bits
                                 end
                                 3'b011:begin
                                     instruction_type = 8'd46; // SD (new value)
-                                    data_size = 64;           // Store Doubleword: 64 bits
+                                    data_size = 7;           // Store Doubleword: 64 bits
                                 end
                                 default: instruction_type = 8'b11111111;  // New value for unknown Store
                             endcase
@@ -259,31 +259,31 @@ module InstructionDecoder (
                             case(funct3)
                                 3'b000:begin
                                     instruction_type = 8'd59; // LB (new value)
-                                    data_size = 8;           // Load Byte: 8 bits
+                                    data_size = 1;           // Load Byte: 8 bits
                                 end
                                 3'b001:begin
                                     instruction_type = 8'd60; // LH (new value)
-                                    data_size = 16;           // Load Halfword: 16 bits
+                                    data_size = 2;           // Load Halfword: 16 bits
                                 end
                                 3'b010:begin
                                     instruction_type = 8'd61; // LW (new value)
-                                    data_size = 32;           // Load Word: 32 bits
+                                    data_size = 4;           // Load Word: 32 bits
                                 end
                                 3'b100:begin 
                                     instruction_type = 8'd62; // LBU (new value)
-                                    data_size = 8;            // Load Byte Unsigned: 8 bits
+                                    data_size = 1;            // Load Byte Unsigned: 8 bits
                                 end
                                 3'b101:begin 
                                     instruction_type = 8'd63; // LHU (new value)
-                                    data_size = 16;           // Load Halfword Unsigned: 16 bits
+                                    data_size = 2;           // Load Halfword Unsigned: 16 bits
                                 end
                                 3'b110:begin 
                                     instruction_type = 8'd64; // LWU (new value)
-                                    data_size = 32;           // Load Word Unsigned: 32 bits
+                                    data_size = 4;           // Load Word Unsigned: 32 bits
                                 end
                                 3'b011:begin 
                                     instruction_type = 8'd65; // LD (new value)
-                                    data_size = 64;           // Load Doubleword: 64 bits
+                                    data_size = 7;           // Load Doubleword: 64 bits
                                 end
                             endcase
                         end
@@ -357,6 +357,7 @@ module InstructionDecoder (
                     control_signals_out.imm = imm;
                     control_signals_out.opcode = opcode;
                     control_signals_out.shamt = shamt;
+                    controlSignalsDataSize = data_size;
                     control_signals_out.data_size = data_size;
                     control_signals_out.instruction = instruction_type;
                     //loads and stores
@@ -365,6 +366,9 @@ module InstructionDecoder (
                         control_signals_out.read_memory_access = 1;
                     end else if (opcode == 7'b0100011) begin
                         control_signals_out.write_memory_access = 1;
+                        control_signals_out.read_memory_access = 0;
+                    end else begin
+                        control_signals_out.write_memory_access = 0;
                         control_signals_out.read_memory_access = 0;
                     end
                     control_signals_out.dest_reg = rd;

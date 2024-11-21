@@ -50,14 +50,6 @@ logic decache_request_ready;
 logic decache_result_ready;
 logic [63:0] decache_request_address;
 
-/*
-.clock(clk),
-    .reset(reset),
-    .read_enable(control_signals.read_memory_access),              // Fetcher signals no read - LOAD INSTRUCTION
-    .write_enable(control_signals.write_memory_access),             // Write enable is active - STORE INSTRUCTION
-    .address(decache_request_address),            // Address from ALU result
-    .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
-    .data_input(reg_b_contents),      */
 
 decache data_cache (
     .clock(clk),

@@ -1,13 +1,13 @@
 [*]
 [*] GTKWave Analyzer v3.3.66 (w)1999-2015 BSI
-[*] Thu Nov 21 03:54:20 2024
+[*] Thu Nov 21 19:39:05 2024
 [*]
 [dumpfile] "/home/angadsingh/pipelined-processor-project/trace.vcd"
-[dumpfile_mtime] "Thu Nov 21 01:26:13 2024"
-[dumpfile_size] 12484867
+[dumpfile_mtime] "Thu Nov 21 19:38:54 2024"
+[dumpfile_size] 7127289
 [savefile] "/home/angadsingh/pipelined-processor-project/waveform_simple_01.gtkw"
-[timestart] 41230
-[size] 1280 745
+[timestart] 606920
+[size] 1287 784
 [pos] -1 -1
 *-13.983128 65840 106960 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
@@ -17,15 +17,51 @@
 [treeopen] TOP.top.instructionFetcher.instruction_cache.
 [treeopen] TOP.top.instructionMemoryHandler.
 [treeopen] TOP.top.registerFile.
-[sst_width] 392
+[sst_width] 221
 [signals_width] 377
 [sst_expanded] 1
-[sst_vpaned_height] 265
+[sst_vpaned_height] 206
 @28
 TOP.top.clk
 TOP.top.reset
 @200
 -
+-
+-REGISTER SIGNALS
+@23
+[color] 3
+TOP.top.register(0)[63:0]
+[color] 3
+TOP.top.register(1)[63:0]
+[color] 3
+TOP.top.register(2)[63:0]
+[color] 3
+TOP.top.register(3)[63:0]
+[color] 3
+TOP.top.register(4)[63:0]
+[color] 3
+TOP.top.register(5)[63:0]
+[color] 3
+TOP.top.register(6)[63:0]
+[color] 3
+TOP.top.register(7)[63:0]
+[color] 3
+TOP.top.register(8)[63:0]
+[color] 3
+TOP.top.register(9)[63:0]
+[color] 3
+TOP.top.register(10)[63:0]
+[color] 3
+TOP.top.register(11)[63:0]
+[color] 3
+TOP.top.register(12)[63:0]
+[color] 3
+TOP.top.register(13)[63:0]
+[color] 3
+TOP.top.register(14)[63:0]
+[color] 3
+TOP.top.register(15)[63:0]
+@200
 -
 -FETCHER - HIGH LEVEL
 @22
@@ -96,7 +132,7 @@ TOP.top.memory_enable
 @200
 -
 -DONE SIGNALS
-@29
+@28
 [color] 2
 TOP.top.fetcher_done
 [color] 2

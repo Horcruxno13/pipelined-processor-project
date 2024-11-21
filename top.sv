@@ -186,19 +186,21 @@ register_file registerFile(
             decache_wait_disable <= 0;
         end else begin
             if (!fetch_enable) begin
-                if_id_instruction_reg <= 32'b0;
-                if_id_pc_plus_i_reg <= 64'b0;
-                if_id_valid_reg <= 0;
-                fetch_reset_done <= 1'b1;    
-                mux_selector <= 0;   
-                reg_reset_busy_addr <= destination_reg;
-                if (fetch_reset_done) begin
-                    fetch_enable <= 1;
-                    decode_enable <= 1;
-                    execute_enable <= 1;
-                    memory_enable <= 1;
-                    fetch_reset_done <= 1'b0;       // Clear the flag
-                    upstream_disable <= 0;
+                if (upstream_disable) begin
+                    if_id_instruction_reg <= 32'b0;
+                    if_id_pc_plus_i_reg <= 64'b0;
+                    if_id_valid_reg <= 0;
+                    fetch_reset_done <= 1'b1;    
+                    mux_selector <= 0;   
+                    reg_reset_busy_addr <= destination_reg;
+                    if (fetch_reset_done) begin
+                        fetch_enable <= 1;
+                        decode_enable <= 1;
+                        execute_enable <= 1;
+                        memory_enable <= 1;
+                        fetch_reset_done <= 1'b0;       // Clear the flag
+                        upstream_disable <= 0;
+                    end
                 end
             end else begin
                 if (fetcher_done) begin
@@ -331,7 +333,7 @@ register_file registerFile(
                     upstream_disable <= 1;
                     decache_wait_disable <= 0;
                 end else begin
-                    memory_enable <= 0;
+                    //memory_enable <= 0;
                     execute_enable <= 0;
                     decode_enable <= 0;
                     fetch_enable <= 0;
@@ -432,7 +434,6 @@ register_file registerFile(
                     fetch_enable <= 1;
                     decode_enable <= 1;
                     execute_enable <= 1; //don't want to come in fetcher's way, let that restart things as it was doing
-                    memory_enable <= 1;//start orgy
                     decache_wait_disable <= 0;
                 end
             end
