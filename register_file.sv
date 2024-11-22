@@ -107,7 +107,7 @@ module register_file
                 if (i == 2) begin
                     register[i] <= stackptr;
                 end else begin
-                    register[i] <= 64'hDEADBEEFDEADBEEF;
+                    register[i] <= 64'd0;
                 end
                 register_busy[i] <= 1'b0; // All registers are initially not busy
             end

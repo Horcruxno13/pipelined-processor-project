@@ -246,7 +246,7 @@ always_ff @(posedge clock) begin
 
             WRITE_MEMORY_ACCESS: begin
                 if (m_axi_wvalid && m_axi_wready) begin
-                    m_axi_wdata <= cache_data[set_index][empty_way][(burst_counter * 64) +: 64];
+                    m_axi_wdata <= cache_data[set_index][empty_way_next][(burst_counter * 64) +: 64];
                     m_axi_wstrb <= 8'hFF;
                     burst_counter <= burst_counter + 1;
                     
@@ -356,12 +356,10 @@ always_comb begin
         end
 
         WRITE_COMPLETE: begin
-            if (write_data_done && !way_cleaned) begin
-                next_state = IDLE_HIT;
-            end else if (write_data_done && way_cleaned) begin
-                next_state = IDLE_HIT;
+            if (write_data_done && way_cleaned) begin
+                next_state = STORE_DATA;
             end else begin
-                next_state = STORE_DATA; // Default case if no conditions are met
+                next_state = WRITE_COMPLETE; // Default case if no conditions are met
             end
         end
 
@@ -421,6 +419,7 @@ always_comb begin
                 data_retrieved_next = 0;
                 replace_line = 0;
                 data_cache_reading = 0;
+                write_data_done = 0;
                 if (read_enable && !check_done) begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
@@ -540,7 +539,7 @@ always_comb begin
             end
 
             SEND_DATA: begin
-                temp_data = cache_data[set_index][empty_way][(block_offset) * 64 +: 64]; 
+                temp_data = cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64]; 
                 case (data_size)
                     3'b001: data_out = {56'b0, temp_data[7:0]};        // 1 byte
                     3'b010: data_out = {48'b0, temp_data[15:0]};       // 2 bytes
@@ -557,9 +556,9 @@ always_comb begin
             end 
 
             WRITE_MISS: begin
-                cache_data[set_index][empty_way][(block_offset) * 64 +: 64] = (cache_data[set_index][empty_way][(block_offset) * 64 +: 64] & ~write_mask) | (data_input & write_mask);
+                cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64] = (cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64] & ~write_mask) | (data_input & write_mask);
                 send_enable_next = 1;
-                dirty_bits[set_index][empty_way] = 1;
+                dirty_bits[set_index][empty_way_next] = 1;
                 if (!write_enable) begin
                     send_enable_next = 0;
                     check_done = 0;
@@ -589,7 +588,7 @@ always_comb begin
 
             WRITE_COMPLETE: begin
                 if (!m_axi_wlast && !m_axi_bready) begin
-                    write_data_done = 1;
+                    write_data_done = 1; //TODO: Reset this 
                 end 
             end
 

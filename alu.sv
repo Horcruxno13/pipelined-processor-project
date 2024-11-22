@@ -353,7 +353,7 @@ always_comb begin
 			end
 
 			// Load Instructions
-			8'd59, 8'd60, 8'd61, 8'd62, 8'd63, 8'd64, 8'd65: begin
+			8'd59, 8'd60, 8'd61, 8'd62, 8'd63, 8'd64, 8'd65, 8'd43, 8'd44, 8'd45, 8'd46: begin
 				// Extract the lower 12 bits of the immediate
 				logic [11:0] imm_12bit = imm[11:0];
 

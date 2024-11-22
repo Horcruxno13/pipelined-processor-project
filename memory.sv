@@ -55,7 +55,7 @@ decache data_cache (
     .clock(clk),
     .reset(reset),
     .read_enable(control_signals.read_memory_access),              // Fetcher signals no read
-    .write_enable(1'b0),             // Write enable is active
+    .write_enable(control_signals.write_memory_access),             // Write enable is active
     .address(decache_request_address),            // Address from ALU result
     .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
     .data_input(reg_b_contents),              // Placeholder for data to write, if needed
