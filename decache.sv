@@ -186,6 +186,8 @@ always_ff @(posedge clock) begin
                 end
                 data_received_mem <= 0;
                 way_cleaned <= 0;
+                write_data_done <= 0;
+                write_data_to_mem <= 0;
             end
 
             MISS_REQUEST: begin
@@ -253,18 +255,20 @@ always_ff @(posedge clock) begin
                     // Check if last burst transfer is reached
                     if (burst_counter == 7) begin
                         m_axi_wlast <= 1;
-                    end
+                        burst_counter <= 0; 
+                    end else begin
+                        m_axi_wlast <= 0;
+                    end 
                 end
             end
 
             WRITE_COMPLETE: begin
+                burst_counter <= 0; 
                 if (m_axi_bvalid && !m_axi_bready) begin
                     m_axi_bready <= 1;
-                    m_axi_wlast <= 0;
-                    burst_counter <= 0; 
-                end
-                if (m_axi_bready && m_axi_bvalid) begin
-                    m_axi_bready <= 0;  
+                end else if (m_axi_bready && m_axi_bvalid) begin
+                    m_axi_bready <= 0;
+                    write_data_done <= 1;  
                 end 
             end
             
@@ -352,7 +356,7 @@ always_comb begin
 
         WRITE_MEMORY_ACCESS: begin
             // Transition to WRITE_DATA after staging data for memory
-            next_state = (m_axi_wlast && !m_axi_wvalid) ? WRITE_COMPLETE : WRITE_MEMORY_ACCESS;
+            next_state = (burst_counter == 7 && !m_axi_wvalid) ? WRITE_COMPLETE : WRITE_MEMORY_ACCESS;
         end
 
         WRITE_COMPLETE: begin
@@ -419,7 +423,7 @@ always_comb begin
                 data_retrieved_next = 0;
                 replace_line = 0;
                 data_cache_reading = 0;
-                write_data_done = 0;
+                // write_data_done = 0;
                 if (read_enable && !check_done) begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
@@ -571,7 +575,7 @@ always_comb begin
                 m_axi_awvalid = 1;
                 m_axi_awlen = 7;
                 m_axi_awsize = 3;
-                m_axi_awburst = 2;
+                m_axi_awburst = 1;
                 m_axi_awaddr = modified_address;
             end
 
@@ -581,15 +585,15 @@ always_comb begin
 
             WRITE_MEMORY_ACCESS: begin
                 m_axi_wvalid = 1;
-                if (burst_counter == 7 && m_axi_wlast) begin
+                if (burst_counter == 7) begin
                     m_axi_wvalid = 0;
                 end 
             end
 
             WRITE_COMPLETE: begin
-                if (!m_axi_wlast && !m_axi_bready) begin
-                    write_data_done = 1; //TODO: Reset this 
-                end 
+                // if (!m_axi_wlast && !m_axi_bready) begin
+                //     write_data_done = 1; //TODO: Reset this 
+                // end 
             end
 
             REPLACE_DATA: begin
