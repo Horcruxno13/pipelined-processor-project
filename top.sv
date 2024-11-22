@@ -440,6 +440,8 @@ register_file registerFile(
             end
 
             if (memory_done && memory_enable) begin
+                ex_mem_control_signal_struct.read_memory_access <= 0;
+                ex_mem_control_signal_struct.write_memory_access <= 0;
                 mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                 mem_wb_loaded_data <= mem_wb_loaded_data_next;
                 mem_wb_alu_data <= ex_mem_alu_data;
@@ -487,14 +489,21 @@ register_file registerFile(
                 // pass to reg
                 // read_addr1 <= 0;
                 // read_addr2 <= 0;
-                reg_write_enable <= wb_write_enable;
-                reg_write_addr <= wb_dest_reg_out_next;
-                reg_write_data <= wb_data_out_next;
-                if (write_complete) begin
+                if (wb_write_enable) begin
+                    reg_write_enable <= wb_write_enable;
+                    reg_write_addr <= wb_dest_reg_out_next;
+                    reg_write_data <= wb_data_out_next;
+                    if (write_complete) begin
+                        mem_wb_valid_reg <= 0;
+                        memory_disable <= 0;
+                        memory_enable <= 1;
+                        reg_write_enable <= 0;
+                    end 
+                end else begin
                     mem_wb_valid_reg <= 0;
                     memory_disable <= 0;
                     memory_enable <= 1;
-                end 
+                end
             end
         end
     end

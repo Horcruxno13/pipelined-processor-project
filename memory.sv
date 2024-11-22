@@ -54,8 +54,8 @@ logic [63:0] decache_request_address;
 decache data_cache (
     .clock(clk),
     .reset(reset),
-    .read_enable(control_signals.read_memory_access),              // Fetcher signals no read
-    .write_enable(control_signals.write_memory_access),             // Write enable is active
+    .read_enable(read_enable),              // Fetcher signals no read
+    .write_enable(write_enable),             // Write enable is active
     .address(decache_request_address),            // Address from ALU result
     .data_size(control_signals.data_size),              // Indicates 64-bit data (log2(8 bytes) = 3'b100)
     .data_input(reg_b_contents),              // Placeholder for data to write, if needed
@@ -103,6 +103,24 @@ decache data_cache (
         todo - 
     
     */
+    logic read_enable;
+    logic write_enable;
+    always_comb begin
+        if (reset) begin
+            
+        end else begin
+            if (memory_enable) begin
+                if (!decache_result_ready) begin
+                    read_enable = control_signals.read_memory_access;
+                    write_enable = control_signals.write_memory_access;                    
+                end 
+                else if (decache_result_ready) begin
+                    read_enable = 0;
+                    write_enable = 0;
+                end
+            end
+        end
+    end
 
     always_comb begin
         if (reset) begin
