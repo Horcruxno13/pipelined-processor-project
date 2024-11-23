@@ -52,11 +52,11 @@ module InstructionWriteBack
                     (control_signals.opcode == 7'b0111011) ||                // R-Type with multiplication
                     (control_signals.opcode == 7'b0010011) ||                // I-Type ALU (immediate) instructions
                     (control_signals.opcode == 7'b0011011) ||                // I-Type ALU (immediate, 32M)
-                    (control_signals.opcode == 7'b0010111)) begin            // AUIPC (U-Type)
+                    (control_signals.opcode == 7'b0010111) ||                // AUIPC (U-Type)
+                    (control_signals.opcode == 7'b0110111)) begin           // LUI (U-Type)) 
                     write_data = alu_result;
                     write_enable = 1;
-                end else if ((control_signals.opcode == 7'b0000011) ||       // I-Type Load
-                             (control_signals.opcode == 7'b0110111)) begin   // LUI (U-Type)
+                end else if (control_signals.opcode == 7'b0000011) begin      // I-Type Load
                     // Write back from data load
                     write_data = loaded_data;
                     write_enable = 1;
@@ -65,7 +65,7 @@ module InstructionWriteBack
                     (control_signals.opcode == 7'b1100111)      //jalr
                                                         ) begin
                     if (write_reg != 5'b0) begin
-                        write_data = control_signals.pc;
+                        write_data = control_signals.pc + 4;
                         write_enable = 1;
                     end else begin
                         write_data = 64'b0;

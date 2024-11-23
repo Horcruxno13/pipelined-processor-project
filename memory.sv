@@ -175,12 +175,12 @@ decache data_cache (
                     end
 
                 end else begin
-                    loaded_data_out = 0;
+                    //loaded_data_out = 0;
                     memory_done = 1;
                 end
         
             end else begin
-                loaded_data_out = 0;
+                //loaded_data_out = 0;
                 memory_done = 0;
             end
 

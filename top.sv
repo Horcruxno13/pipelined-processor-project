@@ -294,7 +294,16 @@ register_file registerFile(
                         id_ex_reg_b_data <= read_data2;
                         register_values_ready <= 1'b0;       // Clear the flag
                         id_ex_valid_reg <= 1;
-                        initial_pc <= initial_pc + 4;
+                        if (id_ex_control_signal_struct.opcode == 7'b1100011) begin //BRANCH Instruction True
+                            // Extract the lower 12 bits of the immediate
+                            logic [11:0] imm_12bit = id_ex_control_signal_struct.imm[11:0];
+                            // Sign-extend the 12-bit immediate to 64 bits
+                            logic signed [63:0] signed_imm;
+                            signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+                            initial_pc <= id_ex_control_signal_struct.pc + $signed(signed_imm);
+                        end else begin
+                            initial_pc <= initial_pc + 4;
+                        end
                         if_id_valid_reg <= 0;
                     end 
                 end 

@@ -372,7 +372,7 @@ logic[2:0] controlSignalsDataSize;
                         control_signals_out.read_memory_access = 0;
                     end
                     control_signals_out.dest_reg = rd;
-                    control_signals_out.pc = pc_current + 4;
+                    control_signals_out.pc = pc_current;
                 
                     if (instruction_type == 8'b11111111) begin
                         $display("CANNOT DETECT TYPE");

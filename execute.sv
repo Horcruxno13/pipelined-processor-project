@@ -37,8 +37,8 @@ module InstructionExecutor (
             execute_done = 0;
         end else if (execute_enable) begin
             if(control_signals.opcode == 7'b1100011) begin                      // B-Type Branch (Conditional Jump)
-                if (alu_data_out == 1) begin  // branch conditions met 
-                    pc_I_offset_out = pc_current + control_signals.imm;
+                if (alu_data_out == 0) begin  // branch conditions not met 
+                    pc_I_offset_out = control_signals.pc + 4;
                     localJumpSignal = 1;
                 end else begin          // not met
                     pc_I_offset_out = 64'b0;
