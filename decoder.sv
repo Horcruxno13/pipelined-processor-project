@@ -16,12 +16,19 @@ module InstructionDecoder (
     output logic [63:0] shamt,                      // Shift amount
     output logic [7:0] instruction_type,            // Instruction type
     output control_signals_struct control_signals_out,
-    output logic decode_complete
+    output logic decode_complete,
+    output logic decode_latch_complete
 );
 logic[2:0] controlSignalsDataSize;
     logic [2:0] funct3;
     logic [6:0] funct7;
     logic [2:0] data_size;
+
+    always_ff @(posedge clk) begin
+        if (decode_enable) begin
+
+        end
+    end
 
     // Decoding logic purely combinational
     always_comb begin
@@ -379,7 +386,7 @@ logic[2:0] controlSignalsDataSize;
                     end
                 decode_complete = 1;
             end
-        end else begin
+        end else begin //may need to drop these to let stale values be
             rd = 5'b0;
             rs1 = 5'b0;
             rs2 = 5'b0;

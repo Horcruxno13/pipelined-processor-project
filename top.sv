@@ -88,6 +88,7 @@ logic [4:0] reg_reset_busy_addr;
 logic [63:0] reg_write_data;
 logic [4:0] read_addr1, read_addr2;
 logic [63:0] read_data1, read_data2;
+logic reg_write_complete;
 
 logic instruction_cache_reading;
 logic data_cache_reading;
@@ -109,7 +110,7 @@ register_file registerFile(
     .write_enable(reg_write_enable),
     .write_addr(reg_write_addr),
     .write_data(reg_write_data),
-    .write_complete(write_complete),
+    .write_complete(reg_write_complete),
     .register(register),
     // .register_busy(register_busy),
     .destination_reg(destination_reg),
@@ -172,6 +173,8 @@ register_file registerFile(
 
     logic fetch_reset_done;
 
+    logic [31:0] instructionMD;
+
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -183,7 +186,7 @@ register_file registerFile(
             fetch_enable <= 1;
             fetch_reset_done <= 0;
             upstream_disable <= 0;
-            decache_wait_disable <= 0;
+            // decache_wait_disable <= 0;
         end else begin
             if (!fetch_enable) begin
                 if (upstream_disable) begin
@@ -208,6 +211,26 @@ register_file registerFile(
                     if_id_instruction_reg <= if_id_instruction_reg_next;
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                     if_id_valid_reg <= 1;
+
+
+                  /*   instructionMD = if_id_instruction_reg_next;
+                    __opcode = __instruction[6:0];
+                    __imm = {52'b0, __instruction[7], __instruction[30:25], __instruction[11:8], 1'b0};
+
+
+
+                    if (__opcode == 7'b1100011) begin //BRANCH Instruction True
+                    // Extract the lower 12 bits of the immediate
+                    logic [11:0] imm_12bit = id_ex_control_signal_struct.imm[11:0];
+                    // Sign-extend the 12-bit immediate to 64 bits
+                    logic signed [63:0] signed_imm;
+                    signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+                    initial_pc <= id_ex_control_signal_struct.pc + $signed(signed_imm);
+                    end else begin
+                    end */
+                    initial_pc <= initial_pc + 4;
+
+
                 end
             end
         end
@@ -225,6 +248,10 @@ register_file registerFile(
     control_signals_struct id_ex_control_signal_struct, id_ex_control_signal_struct_next;
     logic register_values_ready;
 
+    logic [31:0] decoder_instruction_input;
+    logic [63:0] decoder_pc_current_input;
+    logic decoder_enable_input;
+/* 
     InstructionDecoder instructionDecoder (
         .clk(clk),
         .reset(reset),
@@ -233,6 +260,21 @@ register_file registerFile(
         .decode_enable(if_id_valid_reg),
         .rs1(id_ex_reg_a_addr),      // Example output: reg_a
         .rs2(id_ex_reg_b_addr),      // Example output: reg_b
+        .register_values_ready(register_values_ready),
+        .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
+        .decode_complete(decode_done),
+        .decode_latch_complete()
+        .rd(destination_reg)
+    ); */
+
+    InstructionDecoder instructionDecoder (
+        .clk(clk),
+        .reset(reset),
+        .instruction(decoder_instruction_input),
+        .pc_current(decoder_pc_current_input),
+        .decode_enable(decoder_enable_input),
+        .rs1(read_addr1),      // Example output: reg_a
+        .rs2(read_addr2),      // Example output: reg_b
         .register_values_ready(register_values_ready),
         .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
         .decode_complete(decode_done),
@@ -252,62 +294,45 @@ register_file registerFile(
             id_ex_control_signal_struct <= '0;
             decode_enable <= 1;
         end else begin
-            if (!decode_enable && upstream_disable) begin
-                id_ex_pc_plus_I_reg <= 64'b0;
-                id_ex_reg_a_data <= 64'b0;
-                id_ex_reg_b_data <= 64'b0;
-                id_ex_valid_reg <= 1'b0;
-                id_ex_control_signal_struct <= '0;
+            if (!decode_enable) begin
+                if (upstream_disable) begin
+                    id_ex_pc_plus_I_reg <= 64'b0;
+                    id_ex_reg_a_data <= 64'b0;
+                    id_ex_reg_b_data <= 64'b0;
+                    id_ex_valid_reg <= 1'b0;
+                    id_ex_control_signal_struct <= '0;
+                end
             end else begin
-                if (decode_done) begin
+                if (!decode_done) begin
+                    if (if_id_valid_reg) begin
+                        decoder_instruction_input <= if_id_instruction_reg;
+                        decoder_pc_current_input <= if_id_pc_plus_i_reg;
+                        decoder_enable_input <= if_id_valid_reg;
+                        if_id_valid_reg <= 0;
+                    end
+                end else begin
+                    // decoder_enable_input <= 0;
                 // Load fetched instruction into ID/EX pipeline registers
                     id_ex_pc_plus_I_reg <= if_id_pc_plus_i_reg;
                     id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
-                    // pass to reg
-                    read_addr1 <= id_ex_reg_a_addr;
-                    read_addr2 <= id_ex_reg_b_addr;
 
                     //if this current instruction has matching rd, rs1
-
-
-                
-                    if (raw_dependency) begin
-                        register_values_ready <= 1'b0;       // Signal next cycle to read data
-                    end else begin
-                        register_values_ready <= 1'b1;
-                    end  
-
-                    flag1 = register_values_ready && !raw_dependency;
+                    flag1 = !raw_dependency;
                     flag2 = raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg);
 
-
-                    if (
-                        (
-                            register_values_ready && !raw_dependency) 
+                    if ((!raw_dependency) 
                             || 
-
-                            (raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg))
-                        
-                        ) begin
+                        (raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg))) begin
                         // Step 2: Latch register file output values to pipeline registers
                         id_ex_reg_a_data <= read_data1;
                         id_ex_reg_b_data <= read_data2;
-                        register_values_ready <= 1'b0;       // Clear the flag
                         id_ex_valid_reg <= 1;
-                        if (id_ex_control_signal_struct.opcode == 7'b1100011) begin //BRANCH Instruction True
-                            // Extract the lower 12 bits of the immediate
-                            logic [11:0] imm_12bit = id_ex_control_signal_struct.imm[11:0];
-                            // Sign-extend the 12-bit immediate to 64 bits
-                            logic signed [63:0] signed_imm;
-                            signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
-                            initial_pc <= id_ex_control_signal_struct.pc + $signed(signed_imm);
-                        end else begin
-                            initial_pc <= initial_pc + 4;
-                        end
-                        if_id_valid_reg <= 0;
+                        decoder_enable_input <= 0;
                     end 
                 end 
             end
+
+            
         end
     end
 
@@ -321,7 +346,29 @@ register_file registerFile(
     logic [63:0] ex_mem_reg_b_data;
     control_signals_struct ex_mem_control_signal_struct_next, ex_mem_control_signal_struct;
 
+
+
+    logic [63:0] executor_pc_current_input;
+    logic [63:0] executor_reg_a_data_input;
+    logic [63:0] executor_reg_b_data_input;
+    control_signals_struct executor_control_signals_struct_input;
+    logic executor_enable_input;
+
     InstructionExecutor instructionExecutor (
+        .clk(clk),
+        .reset(reset),
+        .execute_enable(executor_enable_input),
+        .pc_current(executor_pc_current_input),
+        .reg_a_contents(executor_reg_a_data_input), 
+        .reg_b_contents(executor_reg_b_data_input), 
+        .control_signals(executor_control_signals_struct_input),
+        .alu_data_out(ex_mem_alu_data_next),
+        .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
+        .control_signals_out(ex_mem_control_signal_struct_next),
+        .execute_done(execute_done)
+    );
+
+    /*     InstructionExecutor instructionExecutor (
         .clk(clk),
         .reset(reset),
         .execute_enable(id_ex_valid_reg),
@@ -333,46 +380,56 @@ register_file registerFile(
         .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
         .control_signals_out(ex_mem_control_signal_struct_next),
         .execute_done(execute_done)
-    );
+    ); */
 
     // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
     always_ff @(posedge clk) begin
-        if (reset ) begin
+        if (reset) begin
             ex_mem_alu_data <= 64'b0;
             ex_mem_pc_plus_I_offset_reg <= 64'b0;
             ex_mem_reg_b_data <= 64'b0;
             ex_mem_control_signal_struct <= '0;
             execute_enable <= 1;
         end else begin
-            if (!execute_enable && upstream_disable) begin
-                ex_mem_alu_data <= 64'b0;
-                ex_mem_pc_plus_I_offset_reg <= 64'b0;
-                ex_mem_reg_b_data <= 64'b0;
-                ex_mem_control_signal_struct <= '0;
-            end else if (execute_done && execute_enable) begin
-                // Load decoded instruction into EX/MEM pipeline registers
-                ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
-                ex_mem_alu_data <= ex_mem_alu_data_next;
-
-                ex_mem_reg_b_data <= id_ex_reg_b_data;
-                ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
-                if (ex_mem_control_signal_struct_next.jump_signal) begin
-                    upstream_disable <= 1;
-                    decache_wait_disable <= 0;
-                end else begin
-                    //memory_enable <= 0;
-                    execute_enable <= 0;
-                    decode_enable <= 0;
-                    fetch_enable <= 0;
-                    upstream_disable <= 0;
-                    decache_wait_disable <= 1;
+            if (!execute_enable) begin
+                if (upstream_disable) begin
+                    /* ex_mem_alu_data_next <= 64'b0;
+                    ex_mem_pc_plus_I_offset_reg <= 64'b0;
+                    ex_mem_reg_b_data <= 64'b0;
+                    ex_mem_control_signal_struct <= '0; */
                 end
-                ex_mem_valid_reg <= 1;
-                id_ex_valid_reg <= 0;
+            end else begin
+                if (!execute_done) begin
+                    if (id_ex_valid_reg) begin
+                        executor_enable_input <= id_ex_valid_reg;
+                        executor_pc_current_input <= id_ex_pc_plus_I_reg;
+                        executor_reg_a_data_input <= id_ex_reg_a_data;
+                        executor_reg_b_data_input <= id_ex_reg_b_data;
+                        executor_control_signals_struct_input <= id_ex_control_signal_struct;
+                        id_ex_valid_reg <= 0;
+                    end
+                end else begin
+                     // Load decoded instruction into EX/MEM pipeline registers
+                    ex_mem_pc_plus_I_offset_reg <= ex_mem_pc_plus_I_offset_reg_next;
+                    ex_mem_alu_data <= ex_mem_alu_data_next;
+                    ex_mem_reg_b_data <= id_ex_reg_b_data;
+                    ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
+                    if (ex_mem_control_signal_struct_next.jump_signal) begin
+                        upstream_disable <= 1;
+                        decache_wait_disable <= 0;
+                    end else begin
+                        //memory_enable <= 0;
+                        execute_enable <= 0;
+                        decode_enable <= 0;
+                        fetch_enable <= 0;
+                        upstream_disable <= 0;
+                        decache_wait_disable <= 1;
+                    end
+                    executor_enable_input <= 0;
+                    ex_mem_valid_reg <= 1;
+                end
             end
-            
-        end 
-            
+        end           
     end
     
 
@@ -385,14 +442,20 @@ register_file registerFile(
     logic [63:0] mem_wb_alu_data;
     logic mem_wb_valid_reg;
 
+    logic [63:0] memory_pc_plus_I_input;
+    logic [63:0] memory_alu_data_input;
+    logic [63:0] memory_reg_b_data_input;
+    control_signals_struct memory_control_signals_struct_input;
+    logic memory_enable_input;
+
     InstructionMemoryHandler instructionMemoryHandler (
         .clk(clk),                
-        .reset(reset),            
-        .pc_I_offset(ex_mem_pc_plus_I_offset_reg),        
-        .reg_b_contents(ex_mem_reg_b_data),         
-        .alu_data(ex_mem_alu_data),    
-        .control_signals(ex_mem_control_signal_struct),    
-        .memory_enable(ex_mem_valid_reg),
+        .reset(reset),
+        .pc_I_offset(memory_pc_plus_I_input),        
+        .reg_b_contents(memory_reg_b_data_input),         
+        .alu_data(memory_alu_data_input),    
+        .control_signals(memory_control_signals_struct_input),    
+        .memory_enable(memory_enable_input),
         .mem_wb_pipeline_valid(mem_wb_valid_reg),
         .instruction_cache_reading(instruction_cache_reading),
         .m_axi_arready(m_axi_arready),
@@ -403,7 +466,6 @@ register_file registerFile(
         .m_axi_wready(m_axi_wready),
         .m_axi_bvalid(m_axi_bvalid),
         .m_axi_bresp(m_axi_bresp),
-
         .loaded_data_out(mem_wb_loaded_data_next),
         .memory_done(memory_done),
         .m_axi_arvalid(m_axi_arvalid),
@@ -436,36 +498,48 @@ register_file registerFile(
             mem_wb_alu_data <= 64'b0;
             memory_enable <= 1;
         end else begin
-            if (memory_enable || decache_wait_disable) begin
+            if (memory_enable) begin
                 target_address <= ex_mem_pc_plus_I_offset_reg;
                 mux_selector <= ex_mem_control_signal_struct.jump_signal;
-            end
-            if (upstream_disable && ex_mem_control_signal_struct.jump_signal) begin
-                initial_pc <= ex_mem_pc_plus_I_offset_reg;
-                execute_enable <= 0;
-                decode_enable <= 0;
-                fetch_enable <= 0;
-                memory_enable <= 0;
-            end
 
-            if (memory_done && memory_enable) begin
-                ex_mem_control_signal_struct.read_memory_access <= 0;
-                ex_mem_control_signal_struct.write_memory_access <= 0;
-                mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
-                mem_wb_loaded_data <= mem_wb_loaded_data_next;
-                mem_wb_alu_data <= ex_mem_alu_data;
-                mem_wb_valid_reg <= 1;
-                memory_enable <= 0;
-                memory_disable <= 1;
-                ex_mem_valid_reg <= 0;
-
-                if (!upstream_disable) begin
-                    fetch_enable <= 1;
-                    decode_enable <= 1;
-                    execute_enable <= 1; //don't want to come in fetcher's way, let that restart things as it was doing
-                    decache_wait_disable <= 0;
+                if (upstream_disable && ex_mem_control_signal_struct.jump_signal) begin
+                    initial_pc <= ex_mem_pc_plus_I_offset_reg;
+                    execute_enable <= 0;
+                    decode_enable <= 0;
+                    fetch_enable <= 0;
+                    memory_enable <= 0;
+                end
+                //todo - this area may be weird during a jump/branch
+                //todo - why aren't we resetting signals here during a stall?
+                if(!memory_done) begin
+                    if(ex_mem_valid_reg) begin
+                        memory_enable_input <= ex_mem_valid_reg;
+                        memory_pc_plus_I_input <= ex_mem_pc_plus_I_offset_reg;
+                        memory_alu_data_input <= ex_mem_alu_data;
+                        memory_reg_b_data_input <= ex_mem_reg_b_data;
+                        memory_control_signals_struct_input <= ex_mem_control_signal_struct;
+                        ex_mem_valid_reg <= 0;
+                    end
+                end else begin
+                    memory_enable_input <= 0;
+                    ex_mem_control_signal_struct.read_memory_access <= 0;
+                    ex_mem_control_signal_struct.write_memory_access <= 0;
+                    mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
+                    mem_wb_loaded_data <= mem_wb_loaded_data_next;
+                    mem_wb_alu_data <= ex_mem_alu_data;
+                    mem_wb_valid_reg <= 1;
+                    /* memory_enable <= 0;
+                    memory_disable <= 1; */
+                    if (!upstream_disable) begin
+                        fetch_enable <= 1;
+                        decode_enable <= 1;
+                        execute_enable <= 1; 
+                        //don't want to come in fetcher's way, let that restart things as it was doing
+                        decache_wait_disable <= 0;
+                    end
                 end
             end
+            
         end
     end
 
@@ -476,42 +550,52 @@ register_file registerFile(
     logic [63:0] wb_dest_reg_out, wb_dest_reg_out_next;
     logic [63:0] wb_data_out, wb_data_out_next;
 
+
+    logic [63:0] writeback_loaded_data_input;
+    logic [63:0] writeback_alu_data_input;
+    control_signals_struct writeback_control_signals_struct_input;
+    logic writeback_enable_input;
+
+    logic write_back_done;
+    logic write_back_enable;
+
     InstructionWriteBack instructionWriteBack (
         .clk(clk),
         .reset(reset),
-        .loaded_data(mem_wb_loaded_data),
-        .alu_result(mem_wb_alu_data),
-        .control_signals(mem_wb_control_signals_reg),
-        .write_reg(wb_dest_reg_out_next),
-        .write_data(wb_data_out_next),
-        .write_enable(wb_write_enable),
-        .wb_module_enable(mem_wb_valid_reg)
+
+
+        .loaded_data(writeback_loaded_data_input),
+        .alu_result(writeback_alu_data_input),
+        .control_signals(writeback_control_signals_struct_input),
+        .wb_write_complete(reg_write_complete),
+
+
+
+        .register_write_addr(reg_write_addr),
+        .register_write_data(reg_write_data),
+        .register_write_enable(reg_write_enable),
+
+        .write_back_done(write_back_done),
+        .wb_module_enable(writeback_enable_input)
     );
 
     always_ff @(posedge clk) begin
         if (reset) begin
             wb_dest_reg_out <= 64'b0;
             wb_data_out <= 64'b0;
-            reg_write_enable <= 0;
+            write_back_enable <= 1;
         end else begin
-            if (memory_disable) begin
-                // pass to reg
-                // read_addr1 <= 0;
-                // read_addr2 <= 0;
-                if (wb_write_enable) begin
-                    reg_write_enable <= wb_write_enable;
-                    reg_write_addr <= wb_dest_reg_out_next;
-                    reg_write_data <= wb_data_out_next;
-                    if (write_complete) begin
+            if (write_back_enable) begin
+                if (!write_back_done) begin
+                    if (mem_wb_valid_reg) begin
+                        writeback_loaded_data_input <= mem_wb_loaded_data;
+                        writeback_alu_data_input <= mem_wb_alu_data;
+                        writeback_control_signals_struct_input <= mem_wb_control_signals_reg;
+                        writeback_enable_input <= mem_wb_valid_reg;
                         mem_wb_valid_reg <= 0;
-                        memory_disable <= 0;
-                        memory_enable <= 1;
-                        reg_write_enable <= 0;
-                    end 
+                    end
                 end else begin
-                    mem_wb_valid_reg <= 0;
-                    memory_disable <= 0;
-                    memory_enable <= 1;
+                    writeback_enable_input <= 0;
                 end
             end
         end
