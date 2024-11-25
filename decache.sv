@@ -129,6 +129,7 @@ logic        m_axi_rvalid;         // Memory response valid signal
 logic [31:0] memory_data;          // Data from memory
 
 logic [63:0] modified_address;
+logic [63:0] increment_address;
 integer empty_way;
 integer empty_way_next;
 integer replace_line_number;
@@ -240,6 +241,7 @@ always_ff @(posedge clock) begin
             // New states for write operations
             WRITE_REQUEST: begin
                 // Issue memory write request on a cache miss (to be implemented)
+                increment_address <= modified_address; 
             end
 
             WRITE_MEMORY_WAIT: begin
@@ -248,10 +250,11 @@ always_ff @(posedge clock) begin
 
             WRITE_MEMORY_ACCESS: begin
                 if (m_axi_wvalid && m_axi_wready) begin
-                    m_axi_wdata <= cache_data[set_index][empty_way_next][(burst_counter * 64) +: 64];
+                    m_axi_wdata <= cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64];
                     m_axi_wstrb <= 8'hFF;
                     burst_counter <= burst_counter + 1;
-                    
+                    do_pending_write(increment_address, cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64], 8);
+                    increment_address <= increment_address + 8;
                     // Check if last burst transfer is reached
                     if (burst_counter == 7) begin
                         m_axi_wlast <= 1;
@@ -571,7 +574,7 @@ always_comb begin
             // New states for write operations
             WRITE_REQUEST: begin
                 // Add actions for WRITE_REQUEST state if needed
-                modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
+                modified_address = {tags[set_index][way_to_replace], set_index, {block_offset_width{1'b0}}};
                 m_axi_awvalid = 1;
                 m_axi_awlen = 7;
                 m_axi_awsize = 3;

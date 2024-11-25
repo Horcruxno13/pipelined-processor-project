@@ -46,7 +46,7 @@ module InstructionWriteBack
                     control_signals.opcode == 7'b1110011) begin      // System Instructions
                     register_write_data = 64'b0;
                     register_write_addr = 5'b0;
-                    register_write_enable = 0;
+                    register_write_enable = 1;
                 end else begin
                 // Write back is happening
                     register_write_addr = control_signals.dest_reg;

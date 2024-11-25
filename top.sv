@@ -80,6 +80,7 @@ logic initial_selector;
 logic [63:0] register [31:0];
 // logic register_busy [31:0];
 logic [4:0] destination_reg;
+logic [4:0] destination_reg_next;
 logic raw_dependency;
 
 logic reg_write_enable;
@@ -175,6 +176,7 @@ register_file registerFile(
 
     logic [31:0] instructionMD;
 
+
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -228,7 +230,9 @@ register_file registerFile(
                     initial_pc <= id_ex_control_signal_struct.pc + $signed(signed_imm);
                     end else begin
                     end */
-                    initial_pc <= initial_pc + 4;
+                    if (!ex_mem_control_signal_struct_next.jump_signal) begin
+                        initial_pc <= initial_pc + 4;
+                    end
 
 
                 end
@@ -278,9 +282,18 @@ register_file registerFile(
         .register_values_ready(register_values_ready),
         .control_signals_out(id_ex_control_signal_struct_next), // Example output: control signals
         .decode_complete(decode_done),
-        .rd(destination_reg)
+        .rd(destination_reg_next)
     );
 
+    always_comb begin
+        if (!decode_enable) begin
+            if (upstream_disable) begin
+                    id_ex_control_signal_struct_next = '0;
+            end
+        end
+    end
+
+    
 
     logic flag1;
     logic flag2;
@@ -296,11 +309,14 @@ register_file registerFile(
         end else begin
             if (!decode_enable) begin
                 if (upstream_disable) begin
-                    id_ex_pc_plus_I_reg <= 64'b0;
-                    id_ex_reg_a_data <= 64'b0;
-                    id_ex_reg_b_data <= 64'b0;
-                    id_ex_valid_reg <= 1'b0;
+                    decoder_instruction_input <= 0;
+                    decoder_pc_current_input <= 0;
+                    decoder_enable_input <= 0;
+                    id_ex_pc_plus_I_reg <= 0;
                     id_ex_control_signal_struct <= '0;
+                    id_ex_reg_a_data <= 0;
+                    id_ex_reg_b_data <= 0;
+                    id_ex_valid_reg <= 0;
                 end
             end else begin
                 if (!decode_done) begin
@@ -317,15 +333,14 @@ register_file registerFile(
                     id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
 
                     //if this current instruction has matching rd, rs1
-                    flag1 = !raw_dependency;
-                    flag2 = raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg);
+                    // flag1 = !raw_dependency;
+                    // flag2 = raw_dependency && (read_addr1 != id_ex_control_signal_struct.dest_reg);
 
-                    if ((!raw_dependency) 
-                            || 
-                        (raw_dependency && (read_addr1 == id_ex_control_signal_struct.dest_reg))) begin
+                    if (!raw_dependency) begin
                         // Step 2: Latch register file output values to pipeline registers
                         id_ex_reg_a_data <= read_data1;
                         id_ex_reg_b_data <= read_data2;
+                        destination_reg <= destination_reg_next;
                         id_ex_valid_reg <= 1;
                         decoder_enable_input <= 0;
                     end 
@@ -383,6 +398,18 @@ register_file registerFile(
     ); */
 
     // EX/MEM Pipeline Register Logic (between Execute and Memory stages)
+
+    always_comb begin
+        if (!execute_enable) begin
+            if (upstream_disable) begin
+                ex_mem_alu_data_next = 64'b0;
+                ex_mem_pc_plus_I_offset_reg_next = 0;
+                //ex_mem_reg_b_data_next = 0;
+                ex_mem_control_signal_struct_next = '0;
+            end
+        end
+    end
+
     always_ff @(posedge clk) begin
         if (reset) begin
             ex_mem_alu_data <= 64'b0;
@@ -393,10 +420,11 @@ register_file registerFile(
         end else begin
             if (!execute_enable) begin
                 if (upstream_disable) begin
-                    /* ex_mem_alu_data_next <= 64'b0;
-                    ex_mem_pc_plus_I_offset_reg <= 64'b0;
-                    ex_mem_reg_b_data <= 64'b0;
-                    ex_mem_control_signal_struct <= '0; */
+                    executor_enable_input <= 0;
+                    executor_pc_current_input <= 0;
+                    executor_reg_a_data_input <= 0;
+                    executor_reg_b_data_input <= 0;
+                    executor_control_signals_struct_input <= 0;
                 end
             end else begin
                 if (!execute_done) begin
@@ -416,6 +444,15 @@ register_file registerFile(
                     ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
                     if (ex_mem_control_signal_struct_next.jump_signal) begin
                         upstream_disable <= 1;
+                        if (ex_mem_control_signal_struct_next.jump_signal) begin
+                            initial_pc <= ex_mem_pc_plus_I_offset_reg_next;
+                            target_address <= ex_mem_pc_plus_I_offset_reg_next;
+                            mux_selector <= ex_mem_control_signal_struct_next.jump_signal;
+                            execute_enable <= 0;
+                            decode_enable <= 0;
+                            fetch_enable <= 0;
+                            //memory_enable <= 0;
+                        end
                         decache_wait_disable <= 0;
                     end else begin
                         //memory_enable <= 0;
@@ -489,6 +526,8 @@ register_file registerFile(
 
 
     // assign memory_ready = ~ex_mem_imm_reg;
+
+    logic[6:0] localOpcodeSignal;
     
 
     always_ff @(posedge clk) begin
@@ -499,16 +538,9 @@ register_file registerFile(
             memory_enable <= 1;
         end else begin
             if (memory_enable) begin
-                target_address <= ex_mem_pc_plus_I_offset_reg;
-                mux_selector <= ex_mem_control_signal_struct.jump_signal;
+                
 
-                if (upstream_disable && ex_mem_control_signal_struct.jump_signal) begin
-                    initial_pc <= ex_mem_pc_plus_I_offset_reg;
-                    execute_enable <= 0;
-                    decode_enable <= 0;
-                    fetch_enable <= 0;
-                    memory_enable <= 0;
-                end
+                
                 //todo - this area may be weird during a jump/branch
                 //todo - why aren't we resetting signals here during a stall?
                 if(!memory_done) begin
