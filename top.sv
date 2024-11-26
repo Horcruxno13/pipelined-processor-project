@@ -194,7 +194,7 @@ register_file registerFile(
                 if (upstream_disable) begin
                     if_id_instruction_reg <= 32'b0;
                     if_id_pc_plus_i_reg <= 64'b0;
-                    //if_id_valid_reg <= 0;
+                    if_id_valid_reg <= 0;
                     fetch_reset_done <= 1'b1;    
                     mux_selector <= 0;   
                     reg_reset_busy_addr <= destination_reg;
@@ -318,7 +318,7 @@ register_file registerFile(
                     id_ex_control_signal_struct <= '0;
                     id_ex_reg_a_data <= 0;
                     id_ex_reg_b_data <= 0;
-                    //id_ex_valid_reg <= 0;
+                    id_ex_valid_reg <= 0;
                 end
             end else begin
                 if (!decode_done) begin
