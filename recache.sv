@@ -338,7 +338,7 @@ always_comb begin
         end
 
         REPLACE_DATA: begin
-
+            replace_line = 0;
         end
 
     endcase
