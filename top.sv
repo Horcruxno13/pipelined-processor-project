@@ -327,6 +327,7 @@ register_file registerFile(
                         decoder_pc_current_input <= if_id_pc_plus_i_reg;
                         decoder_enable_input <= if_id_valid_reg;
                         if_id_valid_reg <= 0;
+                        destination_reg <= 0;
                     end
                 end else begin
                     // decoder_enable_input <= 0;
