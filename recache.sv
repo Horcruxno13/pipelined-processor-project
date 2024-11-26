@@ -34,7 +34,8 @@ module recache #(
 
     // AXI Control
     input logic data_cache_reading,
-    output logic instruction_cache_reading
+    output logic instruction_cache_reading,
+    input logic jump_reset
 );
 
 enum logic [3:0] {
@@ -103,6 +104,7 @@ logic way_cleaned;
 logic replace_line;
 logic [$clog2(ways)-1:0] way_to_replace;
 logic [$clog2(ways)-1:0] counter;
+logic local_jump_reset;
 
 integer data_size_temp = 32; 
 integer block_number;
@@ -137,6 +139,9 @@ always_ff @(posedge clock) begin
         current_state <= next_state;
         send_enable <= send_enable_next;
         data_retrieved <= data_retrieved_next;
+        if (!local_jump_reset) begin
+            local_jump_reset <= jump_reset;
+        end 
     case (current_state)
         IDLE_HIT: begin
             for (i = 0; i < 16; i = i + 1) begin
@@ -144,6 +149,9 @@ always_ff @(posedge clock) begin
             end
             data_received_mem <= 0;
             way_cleaned <= 0;
+            if (local_jump_reset) begin
+                local_jump_reset <= 0;
+            end 
         end
 
         MISS_REQUEST: begin
@@ -223,7 +231,9 @@ always_comb begin
 
         STORE_DATA: begin
             // Return to IDLE_HIT after storing data
-            if (replace_line) begin
+            if (local_jump_reset) begin
+                next_state = IDLE_HIT;
+            end else if (replace_line) begin
                 next_state = REPLACE_DATA;
             end else if (data_stored) begin
                 next_state = SEND_DATA;
@@ -258,6 +268,7 @@ always_comb begin
         instruction_cache_reading = 0;
     end 
     else begin
+
     case (current_state)
         IDLE_HIT: begin
             data_retrieved_next = 0;
@@ -293,6 +304,7 @@ always_comb begin
             m_axi_arsize = 3;
             m_axi_arburst = 2;
             m_axi_araddr = modified_address;
+            check_done = 0;
         end
 
         MEMORY_WAIT: begin
@@ -311,7 +323,7 @@ always_comb begin
         STORE_DATA: begin
             m_axi_arvalid = 0;
             m_axi_rready = 0;
-            instruction_cache_reading = 0;
+            
             set_index_next = modified_address[block_offset_width + set_index_width - 1 : block_offset_width];
             tag_next = modified_address[addr_width-1 : addr_width - tag_width];
             
@@ -329,8 +341,11 @@ always_comb begin
         end
 
         SEND_DATA: begin
-            data_out = cache_data[set_index][empty_way_next][(block_offset) * 32 +: 32]; 
+            if (!jump_reset) begin
+                data_out = cache_data[set_index][empty_way_next][(block_offset) * 32 +: 32]; 
+            end
             send_enable_next = 1;
+            instruction_cache_reading = 0;
             if (!read_enable) begin
                 send_enable_next = 0;
                 check_done = 0;

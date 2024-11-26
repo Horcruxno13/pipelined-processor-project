@@ -80,21 +80,27 @@ logic[2:0] controlSignalsDataSize;
                                     else if (funct7 == 7'b0000001) instruction_type = 8'd10; // MUL
                                 end
                                 3'b001: begin
-                                    if (funct7 == 7'b0000001) instruction_type = 8'd11; // MULH
+                                    if (funct7 == 7'b0000000) instruction_type = 8'd5; 
+                                    else if (funct7 == 7'b0000001) instruction_type = 8'd11; // MULH
                                     // else if (funct7 == 7'b0000010) instruction_type = 8'd12; // MULHSU
                                     // else if (funct7 == 7'b0000011) instruction_type = 8'd13; // MULHU
                                 end
                                 3'b100: begin
-                                    if (funct7 == 7'b0000001) instruction_type = 8'd14; // DIV
+                                    if (funct7 == 7'b0000000) instruction_type = 8'd2; 
+                                    else if (funct7 == 7'b0000001) instruction_type = 8'd14; // DIV
                                 end
                                 3'b101: begin
                                     if (funct7 == 7'b0000001) instruction_type = 8'd15; // DIVU
+                                    else if (funct7 == 7'b0000000) instruction_type = 8'd6; // SRL
+                                    else if (funct7 == 7'b0100000) instruction_type = 8'd7; // SRA
                                 end
                                 3'b110: begin
-                                    if (funct7 == 7'b0000001) instruction_type = 8'd16; // REM
+                                    if (funct7 == 7'b0000000) instruction_type = 8'd3; 
+                                    else if (funct7 == 7'b0000001) instruction_type = 8'd16; // REM
                                 end
                                 3'b111: begin
-                                    if (funct7 == 7'b0000001) instruction_type = 8'd17; // REMU
+                                    if (funct7 == 7'b0000000) instruction_type = 8'd4; 
+                                    else if (funct7 == 7'b0000001) instruction_type = 8'd17; // REMU
                                 end
                                 3'b010: begin
                                     if (funct7 == 7'b0000000) instruction_type = 8'd8; // SLT
@@ -104,14 +110,10 @@ logic[2:0] controlSignalsDataSize;
                                     if (funct7 == 7'b0000000) instruction_type = 8'd9; // SLTU
                                     else if (funct7 == 7'b0000001) instruction_type = 8'd13; // MULHU
                                 end
-                                3'b100: instruction_type = 8'd2; // XOR
-                                3'b110: instruction_type = 8'd3; // OR
-                                3'b111: instruction_type = 8'd4; // AND
-                                3'b001: instruction_type = 8'd5; // SLL
-                                3'b101: begin
-                                    if (funct7 == 7'b0000000) instruction_type = 8'd6; // SRL
-                                    else if (funct7 == 7'b0100000) instruction_type = 8'd7; // SRA
-                                end
+                                // 3'b100: instruction_type = 8'd2; // XOR
+                                // 3'b110: instruction_type = 8'd3; // OR
+                                // 3'b111: instruction_type = 8'd4; // AND
+                                // 3'b001: instruction_type = 8'd5; // SLL
                                 default: instruction_type = 8'b11111111; // New value for unknown R-type
                             endcase
                         end

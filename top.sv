@@ -169,7 +169,9 @@ register_file registerFile(
         .if_id_pipeline_valid(if_id_valid_reg),
         .fetcher_done(fetcher_done),
         .instruction_cache_reading(instruction_cache_reading),
-        .data_cache_reading(data_cache_reading)
+        .data_cache_reading(data_cache_reading),
+        .destination_reg(destination_reg),
+        .jump_reset(upstream_disable)
     );
 
     logic fetch_reset_done;
@@ -198,6 +200,7 @@ register_file registerFile(
                     fetch_reset_done <= 1'b1;    
                     mux_selector <= 0;   
                     reg_reset_busy_addr <= destination_reg;
+                    destination_reg <= 0; 
                     if (fetch_reset_done) begin
                         fetch_enable <= 1;
                         decode_enable <= 1;
@@ -213,7 +216,7 @@ register_file registerFile(
                     if_id_instruction_reg <= if_id_instruction_reg_next;
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                     if_id_valid_reg <= 1;
-
+                    destination_reg <= 0;
 
                   /*   instructionMD = if_id_instruction_reg_next;
                     __opcode = __instruction[6:0];
@@ -438,6 +441,10 @@ register_file registerFile(
                         executor_reg_b_data_input <= id_ex_reg_b_data;
                         executor_control_signals_struct_input <= id_ex_control_signal_struct;
                         id_ex_valid_reg <= 0;
+                        // id_ex_pc_plus_I_reg <= 0;
+                        // id_ex_reg_a_data <= 0;
+                        // id_ex_reg_b_data <= 0;
+                        // id_ex_control_signal_struct <= 0;
                     end
                 end else begin
                      // Load decoded instruction into EX/MEM pipeline registers
@@ -447,16 +454,24 @@ register_file registerFile(
                     ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
                     if (ex_mem_control_signal_struct_next.jump_signal) begin
                         upstream_disable <= 1;
-                        if (ex_mem_control_signal_struct_next.jump_signal) begin
-                            initial_pc <= ex_mem_pc_plus_I_offset_reg_next;
-                            target_address <= ex_mem_pc_plus_I_offset_reg_next;
-                            mux_selector <= ex_mem_control_signal_struct_next.jump_signal;
-                            execute_enable <= 0;
-                            decode_enable <= 0;
-                            fetch_enable <= 0;
-                            //memory_enable <= 0;
-                        end
+                        initial_pc <= ex_mem_pc_plus_I_offset_reg_next;
+                        target_address <= ex_mem_pc_plus_I_offset_reg_next;
+                        mux_selector <= ex_mem_control_signal_struct_next.jump_signal;
+                        execute_enable <= 0;
+                        decode_enable <= 0;
+                        fetch_enable <= 0;
+                        //memory_enable <= 0;
                         decache_wait_disable <= 0;
+
+                        decoder_instruction_input <= 0;
+                        decoder_pc_current_input <= 0;
+                        decoder_enable_input <= 0;
+
+                        executor_enable_input <= 0;
+                        executor_pc_current_input <= 0;
+                        executor_reg_a_data_input <= 0;
+                        executor_reg_b_data_input <= 0;
+                        executor_control_signals_struct_input <= '0;                        
                     end else begin
                         //memory_enable <= 0;
                         execute_enable <= 0;

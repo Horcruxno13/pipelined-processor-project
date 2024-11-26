@@ -27,7 +27,9 @@ module InstructionFetcher (
     output logic [1:0] m_axi_arburst,
 
     output logic m_axi_rready,                // Ready to accept data from AXI
-    output logic instruction_cache_reading
+    output logic instruction_cache_reading,
+    output logic [4:0] destination_reg,
+    input logic jump_reset
 );
 
 // Internal wires and registers (if needed)
@@ -52,12 +54,23 @@ logic recache_result_ready;
         .data_out(instruction_out),
         .send_enable(recache_result_ready),
         .instruction_cache_reading(instruction_cache_reading), // Instruction cache is not in reading mode
-        .data_cache_reading(data_cache_reading)        // Not currently reading data cache
+        .data_cache_reading(data_cache_reading),        // Not currently reading data cache
+        .jump_reset(jump_reset)
     );  
 
 
      
-
+always_ff @(posedge clk) begin
+    if (reset) begin
+    end
+    else begin
+        if (fetch_enable) begin
+            if (recache_request_ready) begin
+                destination_reg <= 0;
+            end 
+        end 
+    end 
+end 
 // No states
 always_comb begin
     if (reset) begin

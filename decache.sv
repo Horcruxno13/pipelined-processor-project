@@ -527,7 +527,7 @@ always_comb begin
             STORE_DATA: begin
                 m_axi_arvalid = 0;
                 m_axi_rready = 0;
-                data_cache_reading = 0;
+                
                 set_index_next = modified_address[block_offset_width + set_index_width - 1 : block_offset_width];
                 tag_next = modified_address[addr_width-1 : addr_width - tag_width];
                 
@@ -546,6 +546,7 @@ always_comb begin
             end
 
             SEND_DATA: begin
+                data_cache_reading = 0;
                 temp_data = cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64]; 
                 case (data_size)
                     3'b001: data_out = {56'b0, temp_data[7:0]};        // 1 byte
@@ -563,6 +564,7 @@ always_comb begin
             end 
 
             WRITE_MISS: begin
+                data_cache_reading = 0;
                 cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64] = (cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64] & ~write_mask) | (data_input & write_mask);
                 send_enable_next = 1;
                 dirty_bits[set_index][empty_way_next] = 1;

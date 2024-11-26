@@ -27,8 +27,9 @@ module InstructionExecutor (
     );
 
     logic localJumpSignal = 0;
-
-
+    logic signed [63:0] signed_imm;
+    logic [11:0] imm_12bit;
+    logic [19:0] imm_20bit;
     always_comb begin
         if (reset) begin
             // reg_b_data_out = 64'b0;
@@ -39,10 +40,10 @@ module InstructionExecutor (
             if(control_signals.opcode == 7'b1100011) begin                      // B-Type Branch (Conditional Jump)
                 if (alu_data_out == 1) begin  // branch conditions not met 
                     // Extract the lower 12 bits of the immediate
-                    logic [11:0] imm_12bit = control_signals.imm[11:0];
+                    imm_12bit = control_signals.imm[11:0];
 
                     // Sign-extend the 12-bit immediate to 64 bits
-                    logic signed [63:0] signed_imm;
+                    
                     signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
 
                     // Perform the addi operation to compute the effective address
@@ -53,11 +54,19 @@ module InstructionExecutor (
                     localJumpSignal = 0;
                 end
             end else if(control_signals.opcode == 7'b1101111) begin            // JAL J-Type Jump (Unconditional Jump)
-                pc_I_offset_out = pc_current + control_signals.imm;
+
+                imm_20bit = control_signals.imm[19:0];
+                signed_imm = {{44{imm_20bit[19]}}, imm_20bit}; 
+                pc_I_offset_out = pc_current + $signed(signed_imm);
                 localJumpSignal = 1;
+
             end else if (control_signals.opcode == 7'b1100111) begin           // I-Type JALR (Unconditional Jump with rs1)
-                pc_I_offset_out = reg_a_contents + control_signals.imm;
+
+                imm_20bit = control_signals.imm[19:0];
+                signed_imm = {{44{imm_20bit[19]}}, imm_20bit}; 
+                pc_I_offset_out = reg_a_contents + $signed(signed_imm);
                 localJumpSignal = 1;
+            
             end else begin
                 // no branches, just alu which always runs in comb
                 pc_I_offset_out = 64'b0;
