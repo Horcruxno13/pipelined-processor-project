@@ -1,8 +1,8 @@
 module decache #(
     parameter cache_line_size = 512,           // Size of each cache line in bytes
     parameter cache_lines = 4,                 // Total number of cache lines
-    parameter sets = 2,                        // Number of sets in the cache
-    parameter ways = 2,                        // Number of ways (associativity) in the cache
+    parameter sets = 64,                        // Number of sets in the cache
+    parameter ways = 8,                        // Number of ways (associativity) in the cache
     parameter addr_width = 64,                 // Width of the address bus
     parameter data_width = 64                  // Width of the data bus 
 )(
@@ -253,7 +253,7 @@ always_ff @(posedge clock) begin
                     m_axi_wvalid <= 1;
                     m_axi_wdata <= cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64];
                     m_axi_wstrb <= 8'hFF;
-                    do_pending_write(increment_address, cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64], 8);
+                    
                     burst_counter <= burst_counter + 1;
                     increment_address <= increment_address + 8;
                     // Check if last burst transfer is reached
@@ -467,10 +467,22 @@ always_comb begin
                     tag = address[addr_width-1:addr_width-tag_width];
                     block_offset = address[block_offset_width-1:3];
                     case (data_size)
-                        3'b001: write_mask = 64'hFF;                  // 1 byte
-                        3'b010: write_mask = 64'hFFFF;                // 2 bytes
-                        3'b100: write_mask = 64'hFFFFFFFF;            // 4 bytes
-                        3'b111: write_mask = 64'hFFFFFFFFFFFFFFFF;    // 8 bytes
+                        3'b001: begin 
+                            write_mask = 64'hFF;
+                            do_pending_write(address, data_input[7:0], 1);     // 1 byte
+                        end                  
+                        3'b010: begin 
+                            write_mask = 64'hFFFF;
+                            do_pending_write(address, data_input[15:0], 2);     // 2 bytes
+                        end                
+                        3'b100: begin 
+                            write_mask = 64'hFFFFFFFF;
+                            do_pending_write(address, data_input[31:0], 4);    // 4 bytes         
+                        end
+                        3'b111: begin 
+                            write_mask = 64'hFFFFFFFFFFFFFFFF;    
+                            do_pending_write(address, data_input[63:0], 8);     // 8 bytes
+                        end
                         default: write_mask = 64'h0;                  // Default case
                     endcase
 

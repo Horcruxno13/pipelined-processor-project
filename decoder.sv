@@ -249,6 +249,7 @@ logic[2:0] controlSignalsDataSize;
                                 3'b000: begin
                                     if (instruction[31:20] == 12'h000)
                                         instruction_type = 8'd57; // ECALL (new value)
+                                        rd = 5'd10;
                                     else if (instruction[31:20] == 12'h001)
                                         instruction_type = 8'd58; // EBREAK (new value)
                                     else
