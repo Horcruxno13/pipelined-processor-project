@@ -81,7 +81,7 @@ enum logic [3:0] {
 } current_state, next_state;
 
 // Derived parameters
-localparam block_offset_width = $clog2(cache_line_size / data_width) + 2;
+localparam block_offset_width = $clog2(cache_line_size / data_width) + 3;
 localparam set_index_width = $clog2(sets);
 localparam tag_width = addr_width - set_index_width - block_offset_width;
 
@@ -249,20 +249,23 @@ always_ff @(posedge clock) begin
             end
 
             WRITE_MEMORY_ACCESS: begin
-                if (m_axi_wvalid && m_axi_wready) begin
+                if (m_axi_wready && !m_axi_wlast) begin
+                    m_axi_wvalid <= 1;
                     m_axi_wdata <= cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64];
                     m_axi_wstrb <= 8'hFF;
-                    burst_counter <= burst_counter + 1;
                     do_pending_write(increment_address, cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64], 8);
+                    burst_counter <= burst_counter + 1;
                     increment_address <= increment_address + 8;
                     // Check if last burst transfer is reached
-                    if (burst_counter == 7) begin
-                        m_axi_wlast <= 1;
-                        burst_counter <= 0; 
-                    end else begin
-                        m_axi_wlast <= 0;
-                    end 
                 end
+                if (burst_counter == 6) begin
+                    m_axi_wlast <= 1;
+                    // burst_counter <= 0; 
+                end 
+                if (m_axi_wlast) begin
+                    m_axi_wvalid <= 0;
+                    // m_axi_wlast <= 0;
+                end 
             end
 
             WRITE_COMPLETE: begin
@@ -272,6 +275,7 @@ always_ff @(posedge clock) begin
                 end else if (m_axi_bready && m_axi_bvalid) begin
                     m_axi_bready <= 0;
                     write_data_done <= 1;  
+                    m_axi_wlast <= 0;
                 end 
             end
             
@@ -430,7 +434,7 @@ always_comb begin
                 if (read_enable && !check_done) begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
-                    block_offset = address[block_offset_width-1:2];
+                    block_offset = address[block_offset_width-1:3];
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
@@ -461,7 +465,7 @@ always_comb begin
                 if (write_enable) begin
                     set_index = address[block_offset_width +: set_index_width];
                     tag = address[addr_width-1:addr_width-tag_width];
-                    block_offset = address[block_offset_width-1:2];
+                    block_offset = address[block_offset_width-1:3];
                     case (data_size)
                         3'b001: write_mask = 64'hFF;                  // 1 byte
                         3'b010: write_mask = 64'hFFFF;                // 2 bytes
@@ -589,10 +593,10 @@ always_comb begin
             end
 
             WRITE_MEMORY_ACCESS: begin
-                m_axi_wvalid = 1;
-                if (burst_counter == 7) begin
-                    m_axi_wvalid = 0;
-                end 
+                // m_axi_wvalid = 1;
+                // if (burst_counter == 7) begin
+                //     m_axi_wvalid = 0;
+                // end 
             end
 
             WRITE_COMPLETE: begin
