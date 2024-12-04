@@ -9,6 +9,7 @@ module InstructionExecutor (
     input  logic [63:0] reg_b_contents,
     input  control_signals_struct control_signals, 
     input logic execute_enable,
+    input logic [63:0] register [31:0],
 
     output logic [63:0] alu_data_out,               // ALU data output
     output logic [63:0] pc_I_offset_out,            // PC value to jump to
@@ -30,6 +31,22 @@ module InstructionExecutor (
     logic signed [63:0] signed_imm;
     logic [11:0] imm_12bit;
     logic [19:0] imm_20bit;
+
+    logic ecall_done;
+
+    always_ff @(posedge clk) begin 
+        if (execute_enable && ecall_done == 0) begin
+            if (control_signals.instruction == 8'd57) begin
+                do_ecall(register[17], register[10], register[11], register[12], register[13], register[14], register[15], register[16], alu_data_out);
+                ecall_done <= 1;
+            end else begin
+                ecall_done <= 0;
+            end
+        end
+    end
+
+
+
     always_comb begin
         if (reset) begin
             // reg_b_data_out = 64'b0;
@@ -74,7 +91,16 @@ module InstructionExecutor (
             end
             control_signals_out = control_signals;
             control_signals_out.jump_signal = localJumpSignal;
-            execute_done = 1;
+
+            if (control_signals.instruction == 8'd57) begin         //ECALL CASE
+                if (ecall_done) begin
+                    execute_done = 1;
+                end else begin
+                    execute_done = 0;
+                end 
+            end else begin
+                execute_done = 1;
+            end
         end else begin
             // reg_b_data_out = 64'b0;
             // alu_data_out = 64'b0;

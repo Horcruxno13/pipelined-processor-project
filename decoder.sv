@@ -247,9 +247,10 @@ logic[2:0] controlSignalsDataSize;
                             funct3 = instruction[14:12];
                             case(funct3)
                                 3'b000: begin
-                                    if (instruction[31:20] == 12'h000)
+                                    if (instruction[31:20] == 12'h000) begin
                                         instruction_type = 8'd57; // ECALL (new value)
                                         rd = 5'd10;
+                                    end
                                     else if (instruction[31:20] == 12'h001)
                                         instruction_type = 8'd58; // EBREAK (new value)
                                     else

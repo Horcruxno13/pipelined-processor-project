@@ -44,9 +44,16 @@ module InstructionWriteBack
                     // control_signals.opcode == 7'b1100111 ||          // I-Type JALR
                     control_signals.opcode == 7'b0001111 ||          // FENCE (I-Type)
                     control_signals.opcode == 7'b1110011) begin      // System Instructions
-                    register_write_data = 64'b0;
-                    register_write_addr = 5'b0;
-                    register_write_enable = 1;
+
+                    if (control_signals.instruction == 8'd57) begin
+                        register_write_data = alu_result;
+                        register_write_addr = control_signals.dest_reg;
+                        register_write_enable = 1;
+                    end else begin
+                        register_write_data = 64'b0;
+                        register_write_addr = 5'b0;
+                        register_write_enable = 1;
+                    end
                 end else begin
                 // Write back is happening
                     register_write_addr = control_signals.dest_reg;
