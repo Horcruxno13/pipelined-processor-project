@@ -42,18 +42,12 @@ module InstructionWriteBack
                 if (control_signals.opcode == 7'b0100011 ||          // S-Type Store
                     control_signals.opcode == 7'b1100011 ||          // B-Type Branch
                     // control_signals.opcode == 7'b1100111 ||          // I-Type JALR
-                    control_signals.opcode == 7'b0001111 ||          // FENCE (I-Type)
-                    control_signals.opcode == 7'b1110011) begin      // System Instructions
-
-                    if (control_signals.instruction == 8'd57) begin
-                        register_write_data = alu_result;
-                        register_write_addr = control_signals.dest_reg;
-                        register_write_enable = 1;
-                    end else begin
-                        register_write_data = 64'b0;
-                        register_write_addr = 5'b0;
-                        register_write_enable = 1;
-                    end
+                    control_signals.opcode == 7'b0001111          // FENCE (I-Type)
+                    ) begin      // System Instructions
+                    register_write_data = 64'b0;
+                    register_write_addr = 5'b0;
+                    register_write_enable = 1;
+                    
                 end else begin
                 // Write back is happening
                     register_write_addr = control_signals.dest_reg;
@@ -81,7 +75,17 @@ module InstructionWriteBack
                             register_write_data = 64'b0;
                             register_write_enable = 0;
                         end
-                    end    
+                    end else if (control_signals.opcode == 7'b1110011) begin
+                        if (control_signals.instruction == 8'd57) begin //ECALL
+                            register_write_data = alu_result;
+                            register_write_addr = control_signals.dest_reg;
+                            register_write_enable = 1;
+                        end else begin //EBREAK
+                            register_write_data = 64'b0;
+                            register_write_addr = 5'b0;
+                            register_write_enable = 1;
+                        end
+                    end   
                 end
             end else begin
                 register_write_enable = 0;

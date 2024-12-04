@@ -16,6 +16,11 @@ module InstructionExecutor (
     output  control_signals_struct control_signals_out, 
     output logic        execute_done                // Ready signal indicating execute completion
 );
+
+
+    logic [63:0] ecall_alu_data_out; // Temporary storage for ECALL output
+    logic [63:0] alu_result;         // Separate signal for ALU result
+
     alu ALU_unit(
         .instruction(control_signals.instruction),
         .rs1(reg_a_contents),
@@ -24,7 +29,7 @@ module InstructionExecutor (
         .shamt(control_signals.shamt),
         // .alu_enable(alu_enable),
         .pc_alu(pc_current),
-        .result(alu_data_out)
+        .result(alu_result)
     );
 
     logic localJumpSignal = 0;
@@ -34,12 +39,30 @@ module InstructionExecutor (
 
     logic ecall_done;
 
-    always_ff @(posedge clk) begin 
-        if (execute_enable && ecall_done == 0) begin
+    logic [2:0] ecall_counter; // Counter for tracking ECALL cycles (3-bit to count up to 4)
+    logic ecall_active;        // Flag to indicate if ECALL is currently active
+
+
+    always_ff @(posedge clk or posedge reset) begin
+        if (reset) begin
+            ecall_counter <= 0;
+            ecall_active <= 0;
+            ecall_done <= 0;
+        end else if (execute_enable) begin
             if (control_signals.instruction == 8'd57) begin
-                do_ecall(register[17], register[10], register[11], register[12], register[13], register[14], register[15], register[16], alu_data_out);
-                ecall_done <= 1;
+                if (!ecall_active) begin
+                    do_ecall(register[17], register[10], register[11], register[12], register[13], register[14], register[15], register[16], ecall_alu_data_out);
+                    ecall_active <= 1; // Start ECALL
+                    ecall_counter <= 1;
+                end else if (ecall_counter < 4) begin
+                    ecall_counter <= ecall_counter + 1; // Increment counter
+                end else begin
+                    ecall_done <= 1; // Set ECALL as done
+                    ecall_active <= 0;
+                end
             end else begin
+                ecall_counter <= 0;
+                ecall_active <= 0;
                 ecall_done <= 0;
             end
         end
@@ -53,6 +76,7 @@ module InstructionExecutor (
             alu_data_out = 64'b0;
             pc_I_offset_out = 64'b0;
             execute_done = 0;
+            ecall_alu_data_out = 0;
         end else if (execute_enable) begin
             if(control_signals.opcode == 7'b1100011) begin                      // B-Type Branch (Conditional Jump)
                 if (alu_data_out == 1) begin  // branch conditions not met 
@@ -92,14 +116,21 @@ module InstructionExecutor (
             control_signals_out = control_signals;
             control_signals_out.jump_signal = localJumpSignal;
 
-            if (control_signals.instruction == 8'd57) begin         //ECALL CASE
-                if (ecall_done) begin
-                    execute_done = 1;
-                end else begin
-                    execute_done = 0;
-                end 
+            if (control_signals.instruction == 8'd57) begin
+                alu_data_out = ecall_alu_data_out; // Use ECALL output during operation
             end else begin
-                execute_done = 1;
+                alu_data_out = alu_result; // Default to ALU output
+            end
+
+            // Set execute_done based on ECALL state
+            if (control_signals.instruction == 8'd57) begin
+                if (ecall_done) begin
+                    execute_done = 1; // ECALL is fully processed
+                end else begin
+                    execute_done = 0; // Wait for ECALL to complete
+                end
+            end else begin
+                execute_done = 1; // Non-ECALL instructions always finish in one cycle
             end
         end else begin
             // reg_b_data_out = 64'b0;
