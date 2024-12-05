@@ -154,6 +154,7 @@ logic[2:0] controlSignalsDataSize;
 
                         // S-type Instructions
                         7'b0100011: begin
+                            rd = 0;
                             funct3 = instruction[14:12];
                             rs1 = instruction[19:15];
                             rs2 = instruction[24:20];
@@ -189,6 +190,7 @@ logic[2:0] controlSignalsDataSize;
 
                         // B-type Instructions
                         7'b1100011: begin
+                            rd = 0;
                             funct3 = instruction[14:12];
                             rs1 = instruction[19:15];
                             rs2 = instruction[24:20];
@@ -391,7 +393,7 @@ logic[2:0] controlSignalsDataSize;
                 decode_complete = 1;
             end
         end else begin //may need to drop these to let stale values be
-            rd = 5'b0;
+            // rd = 5'b0;
             rs1 = 5'b0;
             rs2 = 5'b0;
             imm = 64'b0; // Default to zero
