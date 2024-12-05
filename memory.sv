@@ -44,6 +44,14 @@ module InstructionMemoryHandler (
     output logic m_axi_bready,                 // Ready to accept write response
 
     output logic data_cache_reading
+    
+    //ACSnoop AXI 
+    input  logic m_axi_acvalid,                     // Snoop request valid
+    output logic m_axi_acready,                     // Snoop request ready
+    input  logic [addr_width-1:0] m_axi_acaddr,     // Snoop address
+    input  logic [3:0] m_axi_acsnoop,               // Snoop type
+    output logic snoop_stall,
+
 );
 
 logic decache_request_ready;
@@ -87,6 +95,13 @@ decache data_cache (
     .m_axi_wvalid(m_axi_wvalid),             // Not writing any data currently
     .m_axi_wlast(m_axi_wlast),              // No burst write in progress
     .m_axi_bready(m_axi_bready),             // Ready to accept write responses
+
+    // AC SNOOPS
+    .m_axi_acvalid(m_axi_acvalid),                    // Snoop request valid
+    .m_axi_acready(m_axi_acready),                     // Snoop request ready
+    .m_axi_acaddr(m_axi_acaddr),                       // Snoop address
+    .m_axi_acsnoop(m_axi_acsnoop),                      // Snoop type
+    .stall_core(snoop_stall),
 
     // Data output and control signals
     .data_out(loaded_data_out),          // Output to CPU (instruction data)

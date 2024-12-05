@@ -216,14 +216,21 @@ register_file registerFile(
                     if_id_instruction_reg <= if_id_instruction_reg_next;
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                     if_id_valid_reg <= 1;
-                    destination_reg <= 0;
+                    // destination_reg <= 0;
 
-                  /*   instructionMD = if_id_instruction_reg_next;
-                    __opcode = __instruction[6:0];
-                    __imm = {52'b0, __instruction[7], __instruction[30:25], __instruction[11:8], 1'b0};
+                    // Mini Decoder 
+                    // todo - for ecall stall
+                    MD_instruction = if_id_instruction_reg_next;
+                    MD_opcode = MD_instruction[6:0];
+                    if (MD_instruction == 7'h00000073) begin
+                        ecall_snoop_stall = 1;
+                    end
+                    if (ecall_snoop_stall && !mem_snoop_stall) begin
+                        ecall_snoop_stall = 0;
+                    end
 
-
-
+                /*   
+                    MD_imm = {52'b0, __instruction[7], __instruction[30:25], __instruction[11:8], 1'b0};
                     if (__opcode == 7'b1100011) begin //BRANCH Instruction True
                     // Extract the lower 12 bits of the immediate
                     logic [11:0] imm_12bit = id_ex_control_signal_struct.imm[11:0];
@@ -232,9 +239,12 @@ register_file registerFile(
                     signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
                     initial_pc <= id_ex_control_signal_struct.pc + $signed(signed_imm);
                     end else begin
-                    end */
+                    end 
+                */
                     if (!ex_mem_control_signal_struct_next.jump_signal) begin
-                        initial_pc <= initial_pc + 4;
+                        if (!ecall_snoop_stall) begin
+                            initial_pc <= initial_pc + 4;
+                        end
                     end
 
 
@@ -330,7 +340,7 @@ register_file registerFile(
                         decoder_pc_current_input <= if_id_pc_plus_i_reg;
                         decoder_enable_input <= if_id_valid_reg;
                         if_id_valid_reg <= 0;
-                        destination_reg <= 0;
+                        // destination_reg <= 0;
                     end
                 end else begin
                     // decoder_enable_input <= 0;
@@ -502,6 +512,7 @@ register_file registerFile(
     logic [63:0] memory_reg_b_data_input;
     control_signals_struct memory_control_signals_struct_input;
     logic memory_enable_input;
+    logic mem_snoop_stall;
 
     InstructionMemoryHandler instructionMemoryHandler (
         .clk(clk),                
@@ -539,7 +550,12 @@ register_file registerFile(
         .m_axi_wvalid(m_axi_wvalid),
         .m_axi_wlast(m_axi_wlast),
         .m_axi_bready(m_axi_bready),
-        .data_cache_reading(data_cache_reading)
+        .data_cache_reading(data_cache_reading),
+        .m_axi_acvalid(m_axi_acvalid),                    // Snoop request valid
+        .m_axi_acready(m_axi_acready),                     // Snoop request ready
+        .m_axi_acaddr(m_axi_acaddr),                       // Snoop address
+        .m_axi_acsnoop(m_axi_acsnoop),                      // Snoop type
+        .snoop_stall(mem_snoop_stall),
     );
 
 

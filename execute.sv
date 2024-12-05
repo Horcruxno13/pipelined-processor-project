@@ -50,11 +50,11 @@ module InstructionExecutor (
             ecall_done <= 0;
         end else if (execute_enable) begin
             if (control_signals.instruction == 8'd57) begin
-                if (!ecall_active) begin
+                if (!ecall_done && !ecall_active) begin
                     do_ecall(register[17], register[10], register[11], register[12], register[13], register[14], register[15], register[16], ecall_alu_data_out);
                     ecall_active <= 1; // Start ECALL
                     ecall_counter <= 1;
-                end else if (ecall_counter < 4) begin
+                end else if (ecall_active && ecall_counter < 4) begin
                     ecall_counter <= ecall_counter + 1; // Increment counter
                 end else begin
                     ecall_done <= 1; // Set ECALL as done
