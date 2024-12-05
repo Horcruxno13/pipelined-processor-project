@@ -1,4 +1,8 @@
-module InstructionMemoryHandler (
+module InstructionMemoryHandler
+#(
+    parameter addr_width = 64                 // Width of the address bus
+) 
+(
     input  logic        clk,                // Clock signal
     input  logic        reset,            // Active-low reset
     input logic memory_enable,
@@ -43,14 +47,14 @@ module InstructionMemoryHandler (
     output logic m_axi_wlast,                  // Last transfer in the write burst
     output logic m_axi_bready,                 // Ready to accept write response
 
-    output logic data_cache_reading
+    output logic data_cache_reading,
     
     //ACSnoop AXI 
     input  logic m_axi_acvalid,                     // Snoop request valid
     output logic m_axi_acready,                     // Snoop request ready
     input  logic [addr_width-1:0] m_axi_acaddr,     // Snoop address
     input  logic [3:0] m_axi_acsnoop,               // Snoop type
-    output logic snoop_stall,
+    output logic snoop_stall
 
 );
 

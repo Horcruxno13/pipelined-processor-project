@@ -175,8 +175,7 @@ register_file registerFile(
     );
 
     logic fetch_reset_done;
-
-    logic [31:0] instructionMD;
+    logic ecall_stall;
 
 
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
@@ -217,18 +216,6 @@ register_file registerFile(
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                     if_id_valid_reg <= 1;
                     // destination_reg <= 0;
-                    // destination_reg <= 0;
-
-                    // Mini Decoder 
-                    // todo - for ecall stall
-                    MD_instruction = if_id_instruction_reg_next;
-                    MD_opcode = MD_instruction[6:0];
-                    if (MD_instruction == 7'h00000073) begin
-                        ecall_snoop_stall = 1;
-                    end
-                    if (ecall_snoop_stall && !mem_snoop_stall) begin
-                        ecall_snoop_stall = 0;
-                    end
 
                 /*   
                     MD_imm = {52'b0, __instruction[7], __instruction[30:25], __instruction[11:8], 1'b0};
@@ -243,12 +230,8 @@ register_file registerFile(
                     end 
                 */
                     if (!ex_mem_control_signal_struct_next.jump_signal) begin
-                        if (!ecall_snoop_stall) begin
-                            initial_pc <= initial_pc + 4;
-                        end
+                        initial_pc <= initial_pc + 4;
                     end
-
-
                 end
             end
         end
@@ -342,7 +325,6 @@ register_file registerFile(
                         decoder_enable_input <= if_id_valid_reg;
                         if_id_valid_reg <= 0;
                         // destination_reg <= 0;
-                        // destination_reg <= 0;
                     end
                 end else begin
                     // decoder_enable_input <= 0;
@@ -398,7 +380,8 @@ register_file registerFile(
         .alu_data_out(ex_mem_alu_data_next),
         .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
         .control_signals_out(ex_mem_control_signal_struct_next),
-        .execute_done(execute_done)
+        .execute_done(execute_done),
+        .register(register)
     );
 
     /*     InstructionExecutor instructionExecutor (
@@ -556,8 +539,7 @@ register_file registerFile(
         .m_axi_acvalid(m_axi_acvalid),                    // Snoop request valid
         .m_axi_acready(m_axi_acready),                     // Snoop request ready
         .m_axi_acaddr(m_axi_acaddr),                       // Snoop address
-        .m_axi_acsnoop(m_axi_acsnoop),                      // Snoop type
-        .snoop_stall(mem_snoop_stall),
+        .m_axi_acsnoop(m_axi_acsnoop)                      // Snoop type
     );
 
 
