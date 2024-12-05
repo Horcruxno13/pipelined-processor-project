@@ -217,6 +217,7 @@ register_file registerFile(
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
                     if_id_valid_reg <= 1;
                     // destination_reg <= 0;
+                    // destination_reg <= 0;
 
                     // Mini Decoder 
                     // todo - for ecall stall
@@ -340,6 +341,7 @@ register_file registerFile(
                         decoder_pc_current_input <= if_id_pc_plus_i_reg;
                         decoder_enable_input <= if_id_valid_reg;
                         if_id_valid_reg <= 0;
+                        // destination_reg <= 0;
                         // destination_reg <= 0;
                     end
                 end else begin
