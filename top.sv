@@ -511,6 +511,7 @@ register_file registerFile(
     control_signals_struct memory_control_signals_struct_input;
     logic memory_enable_input;
     logic mem_snoop_stall;
+    logic top_stall_core;
 
     InstructionMemoryHandler instructionMemoryHandler (
         .clk(clk),                
@@ -552,13 +553,17 @@ register_file registerFile(
         .m_axi_acvalid(m_axi_acvalid),                    // Snoop request valid
         .m_axi_acready(m_axi_acready),                     // Snoop request ready
         .m_axi_acaddr(m_axi_acaddr),                       // Snoop address
-        .m_axi_acsnoop(m_axi_acsnoop)                      // Snoop type
+        .m_axi_acsnoop(m_axi_acsnoop),                      // Snoop type
+        .ecall_clean(ecall_detected),
+        .clean_done(memory_ecall_clean),
+        .snoop_stall(top_stall_core)
     );
 
 
     // assign memory_ready = ~ex_mem_imm_reg;
 
     logic[6:0] localOpcodeSignal;
+    logic memory_ecall_clean;
     
 
     always_ff @(posedge clk) begin
@@ -567,11 +572,9 @@ register_file registerFile(
             mem_wb_loaded_data <= 64'b0;
             mem_wb_alu_data <= 64'b0;
             memory_enable <= 1;
+            memory_ecall_clean <= 0;
         end else begin
             if (memory_enable) begin
-                
-
-                
                 //todo - this area may be weird during a jump/branch
                 //todo - why aren't we resetting signals here during a stall?
                 if(!memory_done) begin
@@ -581,6 +584,7 @@ register_file registerFile(
                         memory_alu_data_input <= ex_mem_alu_data;
                         memory_reg_b_data_input <= ex_mem_reg_b_data;
                         memory_control_signals_struct_input <= ex_mem_control_signal_struct;
+                        memory_ecall_clean <= ecall_detected;
                         ex_mem_valid_reg <= 0;
                     end
                 end else begin
@@ -660,8 +664,10 @@ register_file registerFile(
                     end
                 end else begin
                     if (writeback_control_signals_struct_input.instruction == 8'd57) begin
-                        ecall_detected <= 0;
-                        fetch_enable <= 1;
+                        if (!top_stall_core) begin
+                            ecall_detected <= 0;
+                            fetch_enable <= 1;
+                        end 
                     end
                     writeback_enable_input <= 0;
                 end

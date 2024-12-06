@@ -34,6 +34,7 @@ module InstructionMemoryHandler
     input logic m_axi_wready,                  // Ready signal from AXI for write data
     input logic m_axi_bvalid,                  // Write response valid from AXI
     input logic [1:0] m_axi_bresp,             // Write response from AXI
+    input logic ecall_clean,
 
     // AXI interface outputs for write transactions
     output logic m_axi_awvalid,                // Valid signal for write address
@@ -46,6 +47,7 @@ module InstructionMemoryHandler
     output logic m_axi_wvalid,                 // Valid signal for write data
     output logic m_axi_wlast,                  // Last transfer in the write burst
     output logic m_axi_bready,                 // Ready to accept write response
+    output logic clean_done,
 
     output logic data_cache_reading,
     
@@ -83,6 +85,10 @@ decache data_cache (
     .m_axi_arsize(m_axi_arsize),
     .m_axi_arburst(m_axi_arburst),
     .m_axi_rready(m_axi_rready),
+
+    //ecall-related signals
+    .ecall_clean(ecall_clean),
+    .clean_done(clean_done),
 
     // AXI interface for write transactions
     .m_axi_awready(m_axi_awready),
@@ -157,7 +163,7 @@ decache data_cache (
                 end else if (!memory_enable) begin
                     memoryCaseVariable = 3;
                 end
-                if (control_signals.read_memory_access || control_signals.write_memory_access) begin
+                if (control_signals.read_memory_access || control_signals.write_memory_access || ecall_clean) begin
                     /* if (
                     !(memory_done && !mem_wb_pipeline_valid)  
                     // case where we are waiting for a latch - HL
@@ -175,13 +181,15 @@ decache data_cache (
                     
                     ) begin
                     end */
-                    decache_request_address = alu_data;
-                    decache_request_ready = 1;
+                    if (!ecall_clean) begin
+                        decache_request_address = alu_data;
+                        decache_request_ready = 1;
+                    end
 
 
                     //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 
 
-                    if (decache_result_ready) begin // CLK 2
+                    if (decache_result_ready || clean_done) begin // CLK 2
                         decache_request_ready = 0;
                         memory_done = 1;
                     end
@@ -192,7 +200,6 @@ decache data_cache (
                         memory_done = 0;
                     //WAITING GAP - 3 starts because of this  - WAITING FOR THE PV TO BECOME ZERO ALSO 
                     end
-
                 end else begin
                     //loaded_data_out = 0;
                     memory_done = 1;
