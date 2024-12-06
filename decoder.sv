@@ -388,6 +388,8 @@ logic[2:0] controlSignalsDataSize;
                     control_signals_out.pc = pc_current;
                 
                     if (instruction_type == 8'b11111111) begin
+                        $display(pc_current);
+                        $display(instruction);
                         $display("CANNOT DETECT TYPE");
                     end
                 decode_complete = 1;
