@@ -160,6 +160,7 @@ logic [2:0] within_block_offset;
 // State register update (sequential block)
 logic need_cleaning;
 logic cleaning_check_done;
+logic clean_done_next;
 
 always_ff @(posedge clock) begin
     if (reset)
@@ -187,6 +188,7 @@ always_ff @(posedge clock) begin
         current_state <= next_state;
         send_enable <= send_enable_next;
         data_retrieved <= data_retrieved_next;
+        clean_done <= clean_done_next;
         // set_index <= set_index_next;
         // empty_way <= empty_way_next;
         case (current_state)
@@ -305,7 +307,7 @@ always_ff @(posedge clock) begin
             end
 
             FLUSH_DIRTY: begin
-            
+                write_data_done <= 0;
             end 
         endcase
     end
@@ -383,7 +385,7 @@ always_comb begin
         WRITE_COMPLETE: begin
             if (write_data_done && way_cleaned) begin
                 next_state = STORE_DATA;
-            end else if (ecall_clean) begin
+            end else if (write_data_done && ecall_clean) begin
                 next_state = FLUSH_DIRTY;
             end else begin
                 next_state = WRITE_COMPLETE; // Default case if no conditions are met
@@ -446,7 +448,7 @@ always_comb begin
         clean_way = 0;
         need_cleaning = 0;
         cleaning_check_done = 0;
-        clean_done = 0;
+        clean_done_next = 0;
         stall_core = 0;
         for (int set = 0; set < sets; set++) begin
             for (int way = 0; way < ways; way++) begin
@@ -466,6 +468,7 @@ always_comb begin
                 m_axi_acready = 0;
                 cleaning_check_done = 0;
                 need_cleaning = 0;
+                clean_done_next = 0;
                 // write_data_done = 0;
                 if (read_enable && !check_done) begin
                     set_index = address[block_offset_width +: set_index_width];
@@ -666,8 +669,10 @@ always_comb begin
                 cleaning_check_done = 0;
                 if (ecall_clean) begin
                     modified_address = {tags[set_index][clean_way], set_index, {block_offset_width{1'b0}}};
+                    dirty_bits[set_index][clean_way] = 0;
                 end else begin
                     modified_address = {tags[set_index][way_to_replace], set_index, {block_offset_width{1'b0}}};
+                    dirty_bits[set_index][way_to_replace] = 0;
                 end 
                 m_axi_awvalid = 1;
                 m_axi_awlen = 7;
@@ -733,7 +738,7 @@ always_comb begin
                         end
                     end
                     if (!need_cleaning) ;  begin// Exit the outer loop if replacement found
-                        clean_done = 1;
+                        clean_done_next = 1;
                     end
                     cleaning_check_done = 1; 
                 end 
