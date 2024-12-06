@@ -47,7 +47,6 @@ module InstructionMemoryHandler
     output logic m_axi_wvalid,                 // Valid signal for write data
     output logic m_axi_wlast,                  // Last transfer in the write burst
     output logic m_axi_bready,                 // Ready to accept write response
-    output logic clean_done,
 
     output logic data_cache_reading,
     
@@ -63,6 +62,8 @@ module InstructionMemoryHandler
 logic decache_request_ready;
 logic decache_result_ready;
 logic [63:0] decache_request_address;
+
+logic mem_clean_done;
 
 
 decache data_cache (
@@ -88,7 +89,7 @@ decache data_cache (
 
     //ecall-related signals
     .ecall_clean(ecall_clean),
-    .clean_done(clean_done),
+    .clean_done(mem_clean_done),
 
     // AXI interface for write transactions
     .m_axi_awready(m_axi_awready),
@@ -189,7 +190,7 @@ decache data_cache (
 
                     //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 
 
-                    if (decache_result_ready || clean_done) begin // CLK 2
+                    if (decache_result_ready || mem_clean_done) begin // CLK 2
                         decache_request_ready = 0;
                         memory_done = 1;
                     end

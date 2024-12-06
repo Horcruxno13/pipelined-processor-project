@@ -554,8 +554,7 @@ register_file registerFile(
         .m_axi_acready(m_axi_acready),                     // Snoop request ready
         .m_axi_acaddr(m_axi_acaddr),                       // Snoop address
         .m_axi_acsnoop(m_axi_acsnoop),                      // Snoop type
-        .ecall_clean(ecall_detected),
-        .clean_done(memory_ecall_clean),
+        .ecall_clean(memory_ecall_clean),
         .snoop_stall(top_stall_core)
     );
 
