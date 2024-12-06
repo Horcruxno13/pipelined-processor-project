@@ -57,6 +57,10 @@ module decache #(
     output logic [63:0] data_out,                  // Data output to CPU
     output logic send_enable,                   // Indicates data is ready to send
 
+    // Flush Dirty lines
+    input logic ecall_clean,
+    output logic clean_done,
+
     // AXI Control
     input logic instruction_cache_reading,
     output logic data_cache_reading
@@ -77,7 +81,8 @@ enum logic [3:0] {
     WRITE_MEMORY_ACCESS = 4'b1001, // Accessing or preparing data for the write operation
     WRITE_COMPLETE      = 4'b1010,  // Completing the write and updating cache state
     REPLACE_DATA        = 4'b1011,
-    AC_SNOOP            = 4'b1100
+    AC_SNOOP            = 4'b1100,
+    FLUSH_DIRTY         = 4'b1101
 } current_state, next_state;
 
 // Derived parameters
@@ -142,6 +147,7 @@ logic data_stored;
 logic replace_line;
 logic [$clog2(ways)-1:0] way_to_replace;
 logic [$clog2(ways)-1:0] counter;
+logic [$clog2(ways)-1:0] clean_way;
 // logic [:0] data_size_temp = 32;
 integer data_size_temp = 32; 
 integer block_number;
@@ -152,6 +158,8 @@ logic cache_invalidated;
 logic [addr_width-1:0] ac_address;
 logic [2:0] within_block_offset; 
 // State register update (sequential block)
+logic need_cleaning;
+logic cleaning_check_done;
 
 always_ff @(posedge clock) begin
     if (reset)
@@ -295,6 +303,10 @@ always_ff @(posedge clock) begin
             AC_SNOOP: begin
 
             end
+
+            FLUSH_DIRTY: begin
+            
+            end 
         endcase
     end
 end
@@ -309,6 +321,8 @@ always_comb begin
                 next_state = MISS_REQUEST;
             end else if (m_axi_acvalid) begin
                 next_state = AC_SNOOP;
+            end else if (ecall_clean) begin
+                next_state = FLUSH_DIRTY;
             end else begin
                 next_state = IDLE_HIT;
             end
@@ -369,6 +383,8 @@ always_comb begin
         WRITE_COMPLETE: begin
             if (write_data_done && way_cleaned) begin
                 next_state = STORE_DATA;
+            end else if (ecall_clean) begin
+                next_state = FLUSH_DIRTY;
             end else begin
                 next_state = WRITE_COMPLETE; // Default case if no conditions are met
             end
@@ -385,15 +401,23 @@ always_comb begin
         end
 
         AC_SNOOP: begin
-            if (cache_invalidated && invalidation_check_done) begin
-                next_state = MISS_REQUEST;
-            end else if (!cache_invalidated && invalidation_check_done) begin
+            if (invalidation_check_done && !m_axi_acvalid) begin
                 next_state = IDLE_HIT;
             end else begin
                 next_state = AC_SNOOP;
             end
         end
         
+        FLUSH_DIRTY: begin
+            if (!need_cleaning && cleaning_check_done) begin
+                next_state = IDLE_HIT;
+            end else if (need_cleaning && cleaning_check_done) begin
+                next_state = WRITE_REQUEST;
+            end else begin
+                next_state = FLUSH_DIRTY;
+            end
+        end
+
         default: next_state = IDLE_HIT;
     endcase
 end
@@ -418,9 +442,16 @@ always_comb begin
         write_mask = 64'h0;
         data_shifted = 0;
         within_block_offset = 0;
+        cache_invalidated = 0;
+        clean_way = 0;
+        need_cleaning = 0;
+        cleaning_check_done = 0;
+        clean_done = 0;
+        stall_core = 0;
         for (int set = 0; set < sets; set++) begin
             for (int way = 0; way < ways; way++) begin
                 cache_data[set][way] = '0; // Initialize each cache line to 0
+                dirty_bits[set][way] = 0;
             end
         end
     end 
@@ -432,6 +463,9 @@ always_comb begin
                 data_retrieved_next = 0;
                 replace_line = 0;
                 data_cache_reading = 0;
+                m_axi_acready = 0;
+                cleaning_check_done = 0;
+                need_cleaning = 0;
                 // write_data_done = 0;
                 if (read_enable && !check_done) begin
                     set_index = address[block_offset_width +: set_index_width];
@@ -484,18 +518,22 @@ always_comb begin
                         3'b001: begin  // 1 byte
                             write_mask = 64'hFF << (within_block_offset * 8);
                             data_shifted = data_input[7:0] << (within_block_offset * 8);
+                            do_pending_write(address, data_input[7:0], 1);
                         end
                         3'b010: begin  // 2 bytes
                             write_mask = 64'hFFFF << (within_block_offset * 8);
                             data_shifted = data_input[15:0] << (within_block_offset * 8);
+                            do_pending_write(address, data_input[15:0], 2); 
                         end
                         3'b100: begin  // 4 bytes
                             write_mask = 64'hFFFFFFFF << (within_block_offset * 8);
                             data_shifted = data_input[31:0] << (within_block_offset * 8);
+                            do_pending_write(address, data_input[31:0], 4); 
                         end
                         3'b111: begin  // 8 bytes
                             write_mask = 64'hFFFFFFFFFFFFFFFF; // Entire block
                             data_shifted = data_input[63:0];   // No shifting needed
+                            do_pending_write(address, data_input[63:0], 8); 
                         end
                         default: write_mask = 64'h0;  // Default case
                     endcase
@@ -520,6 +558,10 @@ always_comb begin
                     stall_core = 1;
                 end
 
+                if (ecall_clean) begin 
+                    stall_core = 1;
+                end 
+
                 if (cache_invalidated || invalidation_check_done) begin
                     cache_invalidated = 0;
                     invalidation_check_done = 0;
@@ -528,12 +570,12 @@ always_comb begin
             end 
 
             MISS_REQUEST: begin
-                if (!cache_invalidated) begin 
-                    modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
-                end 
-                else begin
-                    modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
-                end 
+                // if (!cache_invalidated) begin 
+                modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
+                // end 
+                // else begin
+                //     modified_address = {address[addr_width-1:block_offset_width], {block_offset_width{1'b0}}};
+                // end 
                 m_axi_arvalid = 1;
                 m_axi_arlen = 7;
                 m_axi_arsize = 3;
@@ -620,7 +662,13 @@ always_comb begin
             // New states for write operations
             WRITE_REQUEST: begin
                 // Add actions for WRITE_REQUEST state if needed
-                modified_address = {tags[set_index][way_to_replace], set_index, {block_offset_width{1'b0}}};
+                need_cleaning = 0;
+                cleaning_check_done = 0;
+                if (ecall_clean) begin
+                    modified_address = {tags[set_index][clean_way], set_index, {block_offset_width{1'b0}}};
+                end else begin
+                    modified_address = {tags[set_index][way_to_replace], set_index, {block_offset_width{1'b0}}};
+                end 
                 m_axi_awvalid = 1;
                 m_axi_awlen = 7;
                 m_axi_awsize = 3;
@@ -651,13 +699,14 @@ always_comb begin
             
             AC_SNOOP: begin
                 if (m_axi_acvalid && m_axi_acsnoop == 4'b1101) begin
+                    m_axi_acready = 1;
                     ac_address = m_axi_acaddr;
                     set_index = ac_address[block_offset_width +: set_index_width];
                     tag = ac_address[addr_width-1:addr_width-tag_width];
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag) begin
                             valid_bits[set_index][i] = 0;  // Invalidate the cache line
-                            cache_invalidated = 1;
+                            // cache_invalidated = 1;
                         end
                     end
                     invalidation_check_done = 1;
@@ -668,8 +717,26 @@ always_comb begin
                 end 
                 
                 if (invalidation_check_done) begin
-                    m_axi_acready = 1;
+                    
                 end
+            end
+
+            FLUSH_DIRTY: begin
+                if (!cleaning_check_done) begin
+                    for (int s = 0; s < sets; s++) begin  // Iterate through all sets
+                        for (int w = 0; w < ways; w++) begin  // Iterate through all ways in each set
+                            if (dirty_bits[s][w] == 1) begin  // Check if dirty bit is set
+                                need_cleaning = 1;  // Notify that a replacement is possible
+                                set_index = s;  // Capture the set index
+                                clean_way = w;  // Capture the way index
+                            end
+                        end
+                    end
+                    if (!need_cleaning) ;  begin// Exit the outer loop if replacement found
+                        clean_done = 1;
+                    end
+                    cleaning_check_done = 1; 
+                end 
             end
 
             default: begin
