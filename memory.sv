@@ -164,33 +164,16 @@ decache data_cache (
                 end else if (!memory_enable) begin
                     memoryCaseVariable = 3;
                 end
-                if (control_signals.read_memory_access || control_signals.write_memory_access || ecall_clean) begin
-                    /* if (
-                    !(memory_done && !mem_wb_pipeline_valid)  
-                    // case where we are waiting for a latch - HL
+                if (control_signals.read_memory_access || control_signals.write_memory_access) begin
                     
-                    && 
+                    decache_request_address = alu_data;
+                    decache_request_ready = 1;
                     
-                    !(memory_done && mem_wb_pipeline_valid)  
-                    // case where latch is done -HH
-
-                    &&
-
-                    !(!memory_done && mem_wb_pipeline_valid)  
-                    // case where latch is done, but next stage (decoder)
-                    // is yet to use the values - LH
-                    
-                    ) begin
-                    end */
-                    if (!ecall_clean) begin
-                        decache_request_address = alu_data;
-                        decache_request_ready = 1;
-                    end
 
 
                     //WAITING MISS GAP - 1 - WAITING FOR CACHE TO BE DONE 
 
-                    if (decache_result_ready || mem_clean_done) begin // CLK 2
+                    if (decache_result_ready) begin // CLK 2
                         decache_request_ready = 0;
                         memory_done = 1;
                     end
@@ -200,6 +183,14 @@ decache data_cache (
                     if (mem_wb_pipeline_valid) begin  // clk 3
                         memory_done = 0;
                     //WAITING GAP - 3 starts because of this  - WAITING FOR THE PV TO BECOME ZERO ALSO 
+                    end
+                end else if (ecall_clean) begin 
+                    if (mem_clean_done) begin // CLK 2
+                        memory_done = 1;
+                    end
+                    
+                    if (mem_wb_pipeline_valid) begin  // clk 3
+                        memory_done = 0;
                     end
                 end else begin
                     //loaded_data_out = 0;

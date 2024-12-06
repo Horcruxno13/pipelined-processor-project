@@ -191,7 +191,7 @@ register_file registerFile(
             fetch_enable <= 1;
             fetch_reset_done <= 0;
             upstream_disable <= 0;
-            // ecall_detected <= 0;
+            ecall_detected <= 0;
             // decache_wait_disable <= 0;
         end else begin
             if (!fetch_enable) begin
@@ -593,6 +593,7 @@ register_file registerFile(
                     mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                     mem_wb_loaded_data <= mem_wb_loaded_data_next;
                     mem_wb_alu_data <= ex_mem_alu_data;
+                    memory_ecall_clean <= 0;
                     mem_wb_valid_reg <= 1;
                     /* memory_enable <= 0;
                     memory_disable <= 1; */
