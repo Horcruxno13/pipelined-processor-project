@@ -29,12 +29,14 @@ module InstructionFetcher (
     output logic m_axi_rready,                // Ready to accept data from AXI
     output logic instruction_cache_reading,
     output logic [4:0] destination_reg,
+    output logic ecall_detected,
     input logic jump_reset
 );
 
 // Internal wires and registers (if needed)
 logic recache_request_ready;
 logic recache_result_ready;
+
 
     recache instruction_cache (
         .clock(clk),
@@ -62,12 +64,17 @@ logic recache_result_ready;
      
 always_ff @(posedge clk) begin
     if (reset) begin
+        ecall_detected <= 0;
     end
     else begin
         if (fetch_enable) begin
             if (recache_request_ready) begin
                 destination_reg <= 0;
-            end 
+            end else if (recache_result_ready) begin
+                if (instruction_out == 8'h000000073) begin
+                    ecall_detected <= 1;
+                end 
+            end
         end 
     end 
 end 
@@ -77,6 +84,7 @@ always_comb begin
         fetcher_done = 0;
         cache_request_address  = 64'b0;
         recache_request_ready = 0;
+        
     end else begin
         if (fetch_enable) begin // clk 1
             if (

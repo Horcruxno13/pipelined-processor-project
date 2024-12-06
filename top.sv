@@ -171,11 +171,13 @@ register_file registerFile(
         .instruction_cache_reading(instruction_cache_reading),
         .data_cache_reading(data_cache_reading),
         .destination_reg(destination_reg),
-        .jump_reset(upstream_disable)
+        .jump_reset(upstream_disable),
+        .ecall_detected(ecall_detected)
     );
 
     logic fetch_reset_done;
     logic ecall_stall;
+    logic ecall_detected;
 
 
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
@@ -189,6 +191,7 @@ register_file registerFile(
             fetch_enable <= 1;
             fetch_reset_done <= 0;
             upstream_disable <= 0;
+            // ecall_detected <= 0;
             // decache_wait_disable <= 0;
         end else begin
             if (!fetch_enable) begin
@@ -210,11 +213,11 @@ register_file registerFile(
                     end
                 end
             end else begin
-                if (fetcher_done) begin
+                if (fetcher_done && !ecall_detected) begin
                     // Load fetched instruction into IF/ID pipeline registers
                     if_id_instruction_reg <= if_id_instruction_reg_next;
                     if_id_pc_plus_i_reg <= if_id_pc_plus_i_reg_next;
-                    if_id_valid_reg <= 1;
+                    if_id_valid_reg <= 1; 
                     // destination_reg <= 0;
 
                 /*   
@@ -229,9 +232,11 @@ register_file registerFile(
                     end else begin
                     end 
                 */
-                    if (!ex_mem_control_signal_struct_next.jump_signal) begin
+                    if (!ecall_detected && !ex_mem_control_signal_struct_next.jump_signal) begin
                         initial_pc <= initial_pc + 4;
-                    end
+                    end 
+                end else if (fetcher_done && ecall_detected) begin
+                    fetch_enable <= 0;
                 end
             end
         end
@@ -287,7 +292,6 @@ register_file registerFile(
             if (upstream_disable) begin
                     id_ex_control_signal_struct_next = '0;
                     destination_reg_next = 0;
-
             end
         end
     end
@@ -327,10 +331,10 @@ register_file registerFile(
                         // destination_reg <= 0;
                     end
                 end else begin
-                    // decoder_enable_input <= 0;
                 // Load fetched instruction into ID/EX pipeline registers
                     id_ex_pc_plus_I_reg <= if_id_pc_plus_i_reg;
                     id_ex_control_signal_struct <= id_ex_control_signal_struct_next;
+                    
 
                     //if this current instruction has matching rd, rs1
                     // flag1 = !raw_dependency;
@@ -338,9 +342,11 @@ register_file registerFile(
 
                     if (!raw_dependency) begin
                         // Step 2: Latch register file output values to pipeline registers
-                        id_ex_reg_a_data <= read_data1;
-                        id_ex_reg_b_data <= read_data2;
-                        destination_reg <= destination_reg_next;
+                        if (!ecall_detected) begin
+                            id_ex_reg_a_data <= read_data1;
+                            id_ex_reg_b_data <= read_data2;
+                            destination_reg <= destination_reg_next;
+                        end
                         id_ex_valid_reg <= 1;
                         decoder_enable_input <= 0;
                     end 
@@ -380,8 +386,7 @@ register_file registerFile(
         .alu_data_out(ex_mem_alu_data_next),
         .pc_I_offset_out(ex_mem_pc_plus_I_offset_reg_next),
         .control_signals_out(ex_mem_control_signal_struct_next),
-        .execute_done(execute_done),
-        .register(register)
+        .execute_done(execute_done)
     );
 
     /*     InstructionExecutor instructionExecutor (
@@ -407,6 +412,12 @@ register_file registerFile(
                 ex_mem_pc_plus_I_offset_reg_next = 0;
                 //ex_mem_reg_b_data_next = 0;
                 ex_mem_control_signal_struct_next = '0;
+            end
+        end else begin
+            if (!execute_done) begin
+                if (ecall_detected && id_ex_valid_reg) begin
+                    destination_reg_next = 0;
+                end
             end
         end
     end
@@ -468,12 +479,14 @@ register_file registerFile(
                         executor_reg_b_data_input <= 0;
                         executor_control_signals_struct_input <= '0;                        
                     end else begin
-                        //memory_enable <= 0;
-                        execute_enable <= 0;
-                        decode_enable <= 0;
-                        fetch_enable <= 0;
-                        upstream_disable <= 0;
-                        decache_wait_disable <= 1;
+                        if (!ecall_detected) begin
+                            //memory_enable <= 0;
+                            execute_enable <= 0;
+                            decode_enable <= 0;
+                            fetch_enable <= 0;
+                            upstream_disable <= 0;
+                            decache_wait_disable <= 1;
+                        end
                     end
                     executor_enable_input <= 0;
                     ex_mem_valid_reg <= 1;
@@ -580,7 +593,7 @@ register_file registerFile(
                     mem_wb_valid_reg <= 1;
                     /* memory_enable <= 0;
                     memory_disable <= 1; */
-                    if (!upstream_disable) begin
+                    if (!upstream_disable && !ecall_detected) begin
                         fetch_enable <= 1;
                         decode_enable <= 1;
                         execute_enable <= 1; 
@@ -626,7 +639,8 @@ register_file registerFile(
         .register_write_enable(reg_write_enable),
 
         .write_back_done(write_back_done),
-        .wb_module_enable(writeback_enable_input)
+        .wb_module_enable(writeback_enable_input),
+        .register(register)
     );
 
     always_ff @(posedge clk) begin
@@ -645,6 +659,10 @@ register_file registerFile(
                         mem_wb_valid_reg <= 0;
                     end
                 end else begin
+                    if (writeback_control_signals_struct_input.instruction == 8'd57) begin
+                        ecall_detected <= 0;
+                        fetch_enable <= 1;
+                    end
                     writeback_enable_input <= 0;
                 end
             end
