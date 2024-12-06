@@ -667,6 +667,7 @@ always_comb begin
                 // Add actions for WRITE_REQUEST state if needed
                 need_cleaning = 0;
                 cleaning_check_done = 0;
+                clean_done_next = 0;
                 if (ecall_clean) begin
                     modified_address = {tags[set_index][clean_way], set_index, {block_offset_width{1'b0}}};
                     dirty_bits[set_index][clean_way] = 0;
@@ -737,12 +738,12 @@ always_comb begin
                             end
                         end
                     end
-                    if (!need_cleaning) ;  begin// Exit the outer loop if replacement found
-                        clean_done_next = 1;
-                    end
-                    cleaning_check_done = 1; 
+                    cleaning_check_done = 1;
                 end 
-            end
+                if (cleaning_check_done && !need_cleaning) begin// Exit the outer loop if replacement found
+                    clean_done_next = 1;
+                end
+            end 
 
             default: begin
                 //data_out = 0;
