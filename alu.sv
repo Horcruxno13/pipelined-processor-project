@@ -264,7 +264,11 @@ always_comb begin
 			end
 
 			8'd29: begin // ADDIW
-				result = $signed(rs1[31:0]) + $signed(imm);  
+				logic [11:0] imm_12bit = imm[11:0];
+
+				// Sign-extend the 12-bit immediate to 64 bits
+				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+				result = $signed(rs1[31:0]) + $signed(signed_imm);  
 			end
 
 			8'd30: begin // SLLIW

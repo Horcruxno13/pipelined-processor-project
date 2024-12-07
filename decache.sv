@@ -215,7 +215,6 @@ always_ff @(posedge clock) begin
             MEMORY_ACCESS: begin
                 if (m_axi_rvalid && m_axi_rready) begin
                     buffer_array[burst_counter] <= m_axi_rdata;
-                    // buffer_array[buffer_pointer + 1] <= m_axi_rdata[63:32];
                     buffer_pointer <= buffer_pointer + 2;
                     burst_counter <= burst_counter + 1;
                 end
