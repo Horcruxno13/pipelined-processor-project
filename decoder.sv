@@ -23,6 +23,7 @@ logic[2:0] controlSignalsDataSize;
     logic [2:0] funct3;
     logic [6:0] funct7;
     logic [2:0] data_size;
+    logic signedType;
 
     always_ff @(posedge clk) begin
         if (decode_enable) begin
@@ -54,6 +55,7 @@ logic[2:0] controlSignalsDataSize;
                 // imm = 64'b0; // Default to zero
                 // shamt = 64'b0; // Default to zero
                 // instruction_type = 8'b11111111; // Default to unknown
+                signedType = 0;
 
                 // Decoding based on opcode
                 case (opcode)
@@ -273,14 +275,17 @@ logic[2:0] controlSignalsDataSize;
                                 3'b000:begin
                                     instruction_type = 8'd59; // LB (new value)
                                     data_size = 1;           // Load Byte: 8 bits
+                                    signedType = 1;
                                 end
                                 3'b001:begin
                                     instruction_type = 8'd60; // LH (new value)
                                     data_size = 2;           // Load Halfword: 16 bits
+                                    signedType = 1;
                                 end
                                 3'b010:begin
                                     instruction_type = 8'd61; // LW (new value)
                                     data_size = 4;           // Load Word: 32 bits
+                                    signedType = 1;
                                 end
                                 3'b100:begin 
                                     instruction_type = 8'd62; // LBU (new value)
@@ -373,6 +378,7 @@ logic[2:0] controlSignalsDataSize;
                     controlSignalsDataSize = data_size;
                     control_signals_out.data_size = data_size;
                     control_signals_out.instruction = instruction_type;
+                    control_signals_out.signed_type = signedType;
                     //loads and stores
                     if (opcode == 7'b0000011) begin
                         control_signals_out.write_memory_access = 0;

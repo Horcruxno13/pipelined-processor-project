@@ -12,6 +12,7 @@ typedef struct packed {
     logic [4:0] dest_reg;
     logic jump_signal;              // Domino to halt everything prev
     logic [63:0] pc;
+    logic signed_type;
 } control_signals_struct;
 
 `endif
