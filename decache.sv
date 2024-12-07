@@ -1,8 +1,8 @@
 module decache #(
     parameter cache_line_size = 512,           // Size of each cache line in bytes
     parameter cache_lines = 4,                 // Total number of cache lines
-    parameter sets = 64,                        // Number of sets in the cache
-    parameter ways = 8,                        // Number of ways (associativity) in the cache
+    parameter sets = 2,                        // Number of sets in the cache
+    parameter ways = 2,                        // Number of ways (associativity) in the cache
     parameter addr_width = 64,                 // Width of the address bus
     parameter data_width = 64                  // Width of the data bus 
 )(
@@ -716,12 +716,14 @@ always_comb begin
             end
             
             AC_SNOOP: begin
-                set_index = ac_address[block_offset_width +: set_index_width];
-                tag = ac_address[addr_width-1:addr_width-tag_width];
-                for (int i = 0; i < ways; i++) begin
-                    if (tags[set_index][i] == tag) begin
-                        valid_bits[set_index][i] = 0;  // Invalidate the cache line
-                        // cache_invalidated = 1;
+                if (m_axi_acready) begin
+                    set_index = ac_address[block_offset_width +: set_index_width];
+                    tag = ac_address[addr_width-1:addr_width-tag_width];
+                    for (int i = 0; i < ways; i++) begin
+                        if (tags[set_index][i] == tag) begin
+                            valid_bits[set_index][i] = 0;  // Invalidate the cache line
+                            // cache_invalidated = 1;
+                        end
                     end
                 end
                 if (!m_axi_acvalid && !m_axi_acready) begin
