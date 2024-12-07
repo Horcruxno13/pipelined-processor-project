@@ -184,7 +184,7 @@ decache data_cache (
                         memory_done = 0;
                     //WAITING GAP - 3 starts because of this  - WAITING FOR THE PV TO BECOME ZERO ALSO 
                     end
-                end else if (ecall_clean) begin 
+                end else if (ecall_clean && control_signals.instruction == 8'd57) begin 
                     if (mem_clean_done) begin // CLK 2
                         memory_done = 1;
                     end

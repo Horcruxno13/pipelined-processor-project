@@ -647,6 +647,8 @@ register_file registerFile(
         .register(register)
     );
 
+    logic [63:0] currInstAtWB;
+
     always_ff @(posedge clk) begin
         if (reset) begin
             wb_dest_reg_out <= 64'b0;
@@ -663,13 +665,17 @@ register_file registerFile(
                         mem_wb_valid_reg <= 0;
                     end
                 end else begin
-                    if (writeback_control_signals_struct_input.instruction == 8'd57) begin
+                    currInstAtWB = writeback_control_signals_struct_input.instruction;
+                    if (currInstAtWB == 8'd57) begin
                         if (!top_stall_core) begin
+                            $display("setting ecall to 0");
                             ecall_detected <= 0;
                             fetch_enable <= 1;
+                            writeback_enable_input <= 0;
                         end 
+                    end else begin 
+                        writeback_enable_input <= 0;
                     end
-                    writeback_enable_input <= 0;
                 end
             end
         end
