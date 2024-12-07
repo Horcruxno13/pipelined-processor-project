@@ -182,7 +182,7 @@ always_ff @(posedge clock) begin
         burst_counter <= 0;
         send_enable <= 0;
         data_received_mem <= 0;
-
+        m_axi_acready <= 0; 
     end else begin
         // Update current state and other variables as per state transitions
         current_state <= next_state;
@@ -201,6 +201,7 @@ always_ff @(posedge clock) begin
                 way_cleaned <= 0;
                 write_data_done <= 0;
                 write_data_to_mem <= 0;
+                m_axi_acready <= 0;
             end
 
             MISS_REQUEST: begin
@@ -303,7 +304,18 @@ always_ff @(posedge clock) begin
             end
 
             AC_SNOOP: begin
+                if (m_axi_acvalid && m_axi_acsnoop == 4'b1101 && !m_axi_acready) begin
+                    m_axi_acready <= 1;
+                    ac_address <= m_axi_acaddr;
+                end
 
+                if (m_axi_acready) begin
+                    m_axi_acready <= 0;
+                end
+
+                if (m_axi_acsnoop != 4'b1101) begin
+                    invalidation_check_done = 1;
+                end 
             end
 
             FLUSH_DIRTY: begin
@@ -465,7 +477,6 @@ always_comb begin
                 data_retrieved_next = 0;
                 replace_line = 0;
                 data_cache_reading = 0;
-                m_axi_acready = 0;
                 cleaning_check_done = 0;
                 need_cleaning = 0;
                 clean_done_next = 0;
@@ -558,7 +569,7 @@ always_comb begin
                 end 
                 
                 if (m_axi_acvalid) begin
-                    stall_core = 1;
+                    // stall_core = 1;
                 end
 
                 if (ecall_clean) begin 
@@ -704,26 +715,16 @@ always_comb begin
             end
             
             AC_SNOOP: begin
-                if (m_axi_acvalid && m_axi_acsnoop == 4'b1101) begin
-                    m_axi_acready = 1;
-                    ac_address = m_axi_acaddr;
-                    set_index = ac_address[block_offset_width +: set_index_width];
-                    tag = ac_address[addr_width-1:addr_width-tag_width];
-                    for (int i = 0; i < ways; i++) begin
-                        if (tags[set_index][i] == tag) begin
-                            valid_bits[set_index][i] = 0;  // Invalidate the cache line
-                            // cache_invalidated = 1;
-                        end
+                set_index = ac_address[block_offset_width +: set_index_width];
+                tag = ac_address[addr_width-1:addr_width-tag_width];
+                for (int i = 0; i < ways; i++) begin
+                    if (tags[set_index][i] == tag) begin
+                        valid_bits[set_index][i] = 0;  // Invalidate the cache line
+                        // cache_invalidated = 1;
                     end
-                    invalidation_check_done = 1;
                 end
-
-                if (m_axi_acsnoop != 4'b1101) begin
+                if (!m_axi_acvalid && !m_axi_acready) begin
                     invalidation_check_done = 1;
-                end 
-                
-                if (invalidation_check_done) begin
-                    
                 end
             end
 
