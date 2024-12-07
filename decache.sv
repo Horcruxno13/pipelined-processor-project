@@ -1,8 +1,8 @@
 module decache #(
     parameter cache_line_size = 512,           // Size of each cache line in bytes
     parameter cache_lines = 4,                 // Total number of cache lines
-    parameter sets = 2,                        // Number of sets in the cache
-    parameter ways = 2,                        // Number of ways (associativity) in the cache
+    parameter sets = 64,                        // Number of sets in the cache
+    parameter ways = 8,                        // Number of ways (associativity) in the cache
     parameter addr_width = 64,                 // Width of the address bus
     parameter data_width = 64                  // Width of the data bus 
 )(
@@ -262,14 +262,19 @@ always_ff @(posedge clock) begin
             WRITE_MEMORY_ACCESS: begin
                 if (m_axi_wready && !m_axi_wlast) begin
                     m_axi_wvalid <= 1;
-                    m_axi_wdata <= cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64];
+                    if (!ecall_clean) begin
+                        m_axi_wdata <= cache_data[set_index][way_to_replace][(burst_counter * 64) +: 64];
+                    end
+                    else if (ecall_clean) begin
+                        m_axi_wdata <= cache_data[set_index][clean_way][(burst_counter * 64) +: 64];
+                    end 
                     m_axi_wstrb <= 8'hFF;
                     
                     burst_counter <= burst_counter + 1;
                     increment_address <= increment_address + 8;
                     // Check if last burst transfer is reached
                 end
-                if (burst_counter == 6) begin
+                if (burst_counter == 7) begin
                     m_axi_wlast <= 1;
                     // burst_counter <= 0; 
                 end 
@@ -311,10 +316,6 @@ always_ff @(posedge clock) begin
 
                 if (m_axi_acready) begin
                     m_axi_acready <= 0;
-                end
-
-                if (m_axi_acsnoop != 4'b1101) begin
-                    invalidation_check_done = 1;
                 end 
             end
 
@@ -391,7 +392,7 @@ always_comb begin
 
         WRITE_MEMORY_ACCESS: begin
             // Transition to WRITE_DATA after staging data for memory
-            next_state = (burst_counter == 7 && !m_axi_wvalid) ? WRITE_COMPLETE : WRITE_MEMORY_ACCESS;
+            next_state = (burst_counter == 8 && !m_axi_wvalid) ? WRITE_COMPLETE : WRITE_MEMORY_ACCESS;
         end
 
         WRITE_COMPLETE: begin
@@ -569,11 +570,11 @@ always_comb begin
                 end 
                 
                 if (m_axi_acvalid) begin
-                    // stall_core = 1;
+                    stall_core = 1;
                 end
 
                 if (ecall_clean) begin 
-                    stall_core = 1;
+                    // stall_core = 1;
                 end 
 
                 if (cache_invalidated || invalidation_check_done) begin
