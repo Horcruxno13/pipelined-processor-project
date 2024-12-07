@@ -61,6 +61,9 @@ module decache #(
     input logic ecall_clean,
     output logic clean_done,
 
+    // sign input for load
+    input logic load_sign,
+
     // AXI Control
     input logic instruction_cache_reading,
     output logic data_cache_reading
@@ -492,13 +495,22 @@ always_comb begin
                             temp_data = cache_data[set_index][i][(block_offset) * 64 +: 64];
                             case (data_size)
                                 3'b001: begin // 1 byte
-                                    data_out = {56'b0, temp_data[(within_block_offset * 8) +: 8]};
+                                    if (load_sign)
+                                        data_out = {{56{temp_data[(within_block_offset * 8) + 7]}}, temp_data[(within_block_offset * 8) +: 8]};
+                                    else
+                                        data_out = {56'b0, temp_data[(within_block_offset * 8) +: 8]};
                                 end
                                 3'b010: begin // 2 bytes
-                                    data_out = {48'b0, temp_data[(within_block_offset * 8) +: 16]};
+                                    if (load_sign)
+                                        data_out = {{48{temp_data[(within_block_offset * 8) + 15]}}, temp_data[(within_block_offset * 8) +: 16]};
+                                    else
+                                        data_out = {48'b0, temp_data[(within_block_offset * 8) +: 16]};
                                 end
                                 3'b100: begin // 4 bytes
-                                    data_out = {32'b0, temp_data[(within_block_offset * 8) +: 32]};
+                                    if (load_sign)
+                                        data_out = {{32{temp_data[(within_block_offset * 8) + 31]}}, temp_data[(within_block_offset * 8) +: 32]};
+                                    else
+                                        data_out = {32'b0, temp_data[(within_block_offset * 8) +: 32]};
                                 end
                                 3'b111: begin // 8 bytes
                                     data_out = temp_data; // Entire block
@@ -638,13 +650,22 @@ always_comb begin
                 temp_data = cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64]; 
                 case (data_size)
                     3'b001: begin // 1 byte
-                        data_out = {56'b0, temp_data[(within_block_offset * 8) +: 8]};
+                        if (load_sign)
+                            data_out = {{56{temp_data[(within_block_offset * 8) + 7]}}, temp_data[(within_block_offset * 8) +: 8]};
+                        else
+                            data_out = {56'b0, temp_data[(within_block_offset * 8) +: 8]};
                     end
                     3'b010: begin // 2 bytes
-                        data_out = {48'b0, temp_data[(within_block_offset * 8) +: 16]};
+                        if (load_sign)
+                            data_out = {{48{temp_data[(within_block_offset * 8) + 15]}}, temp_data[(within_block_offset * 8) +: 16]};
+                        else
+                            data_out = {48'b0, temp_data[(within_block_offset * 8) +: 16]};
                     end
                     3'b100: begin // 4 bytes
-                        data_out = {32'b0, temp_data[(within_block_offset * 8) +: 32]};
+                        if (load_sign)
+                            data_out = {{32{temp_data[(within_block_offset * 8) + 31]}}, temp_data[(within_block_offset * 8) +: 32]};
+                        else
+                            data_out = {32'b0, temp_data[(within_block_offset * 8) +: 32]};
                     end
                     3'b111: begin // 8 bytes
                         data_out = temp_data; // Entire block

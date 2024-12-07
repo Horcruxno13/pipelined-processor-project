@@ -88,7 +88,7 @@ decache data_cache (
     .m_axi_rready(m_axi_rready),
 
     //load-type information
-    .load_signal(control_signals.signed_type)
+    .load_sign(control_signals.signed_type),
 
     //ecall-related signals
     .ecall_clean(ecall_clean),
