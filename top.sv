@@ -573,6 +573,7 @@ register_file registerFile(
             memory_enable <= 1;
             memory_ecall_clean <= 0;
         end else begin
+            memory_ecall_clean <= ecall_detected;
             if (memory_enable) begin
                 //todo - this area may be weird during a jump/branch
                 //todo - why aren't we resetting signals here during a stall?
@@ -583,7 +584,6 @@ register_file registerFile(
                         memory_alu_data_input <= ex_mem_alu_data;
                         memory_reg_b_data_input <= ex_mem_reg_b_data;
                         memory_control_signals_struct_input <= ex_mem_control_signal_struct;
-                        memory_ecall_clean <= ecall_detected;
                         ex_mem_valid_reg <= 0;
                     end
                 end else begin
@@ -593,7 +593,7 @@ register_file registerFile(
                     mem_wb_control_signals_reg <= ex_mem_control_signal_struct;
                     mem_wb_loaded_data <= mem_wb_loaded_data_next;
                     mem_wb_alu_data <= ex_mem_alu_data;
-                    memory_ecall_clean <= 0;
+                    // memory_ecall_clean <= 0;
                     mem_wb_valid_reg <= 1;
                     /* memory_enable <= 0;
                     memory_disable <= 1; */
