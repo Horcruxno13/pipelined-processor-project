@@ -118,6 +118,7 @@ logic [63:0] current_transfer_value;
 logic data_retrieved;
 
 logic [63:0] temp_data; // Temporary variable for extracted data
+logic [63:0] temp_cache_line;
 logic [63:0] write_mask;
 // internal logic next bits
 logic cache_hit_next;
@@ -160,6 +161,7 @@ logic invalidation_check_done;
 logic cache_invalidated;
 logic [addr_width-1:0] ac_address;
 logic [2:0] within_block_offset; 
+logic [2:0] reversed_offset;
 // State register update (sequential block)
 logic need_cleaning;
 logic cleaning_check_done;
@@ -213,6 +215,7 @@ always_ff @(posedge clock) begin
 
             MEMORY_WAIT: begin
                 // Wait for memory response
+                increment_address <= modified_address; 
             end
 
             MEMORY_ACCESS: begin
@@ -220,6 +223,7 @@ always_ff @(posedge clock) begin
                     buffer_array[burst_counter] <= m_axi_rdata;
                     buffer_pointer <= buffer_pointer + 2;
                     burst_counter <= burst_counter + 1;
+                    increment_address <= increment_address + 8;
                 end
                     
                     // Check if last burst transfer is reached
@@ -489,38 +493,63 @@ always_comb begin
                     tag = address[addr_width-1 -: tag_width];
                     block_offset = address[block_offset_width-1:3];
                     within_block_offset = address[2:0];
+                    reversed_offset = 7 - within_block_offset;
                     for (int i = 0; i < ways; i++) begin
-                        if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
-                            cache_hit = 1;   // Cache hit
-                            temp_data = cache_data[set_index][i][(block_offset) * 64 +: 64];
-                            case (data_size)
-                                3'b001: begin // 1 byte
-                                    if (load_sign)
-                                        data_out = {{56{temp_data[(within_block_offset * 8) + 7]}}, temp_data[(within_block_offset * 8) +: 8]};
-                                    else
-                                        data_out = {56'b0, temp_data[(within_block_offset * 8) +: 8]};
-                                end
-                                3'b010: begin // 2 bytes
-                                    if (load_sign)
-                                        data_out = {{48{temp_data[(within_block_offset * 8) + 15]}}, temp_data[(within_block_offset * 8) +: 16]};
-                                    else
-                                        data_out = {48'b0, temp_data[(within_block_offset * 8) +: 16]};
-                                end
-                                3'b100: begin // 4 bytes
-                                    if (load_sign)
-                                        data_out = {{32{temp_data[(within_block_offset * 8) + 31]}}, temp_data[(within_block_offset * 8) +: 32]};
-                                    else
-                                        data_out = {32'b0, temp_data[(within_block_offset * 8) +: 32]};
-                                end
-                                3'b111: begin // 8 bytes
-                                    data_out = temp_data; // Entire block
-                                end
-                                default: begin
-                                    data_out = 64'b0; // Default case, shouldn't happen
-                                end
-                            endcase
-                        end
+                    if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
+                        cache_hit = 1;   // Cache hit
+                        temp_data = cache_data[set_index][i][(block_offset) * 64 +: 64];  // Extract data for block
+                        // Handle data size cases explicitly
+                        case (data_size)
+                            3'b001: begin // 1 byte
+                                case (within_block_offset)
+                                    3'b000: data_out = load_sign ? {{56{temp_data[63]}}, temp_data[63:56]} : {56'b0, temp_data[63:56]};
+                                    3'b001: data_out = load_sign ? {{56{temp_data[55]}}, temp_data[55:48]} : {56'b0, temp_data[55:48]};
+                                    3'b010: data_out = load_sign ? {{56{temp_data[47]}}, temp_data[47:40]} : {56'b0, temp_data[47:40]};
+                                    3'b011: data_out = load_sign ? {{56{temp_data[39]}}, temp_data[39:32]} : {56'b0, temp_data[39:32]};
+                                    3'b100: data_out = load_sign ? {{56{temp_data[31]}}, temp_data[31:24]} : {56'b0, temp_data[31:24]};
+                                    3'b101: data_out = load_sign ? {{56{temp_data[23]}}, temp_data[23:16]} : {56'b0, temp_data[23:16]};
+                                    3'b110: data_out = load_sign ? {{56{temp_data[15]}}, temp_data[15:8]} : {56'b0, temp_data[15:8]};
+                                    3'b111: data_out = load_sign ? {{56{temp_data[7]}}, temp_data[7:0]} : {56'b0, temp_data[7:0]};
+                                    default: data_out = 64'b0; // Default case, shouldn't happen
+                                endcase
+                            end
+
+                            3'b010: begin // 2 bytes
+                                case (within_block_offset)
+                                    3'b000: data_out = load_sign ? {{48{temp_data[63]}}, temp_data[63:48]} : {48'b0, temp_data[63:48]};
+                                    // 3'b001: data_out = load_sign ? {{48{temp_data[55]}}, temp_data[55:40]} : {48'b0, temp_data[55:40]};
+                                    3'b010: data_out = load_sign ? {{48{temp_data[47]}}, temp_data[47:32]} : {48'b0, temp_data[47:32]};
+                                    // 3'b011: data_out = load_sign ? {{48{temp_data[39]}}, temp_data[39:24]} : {48'b0, temp_data[39:24]};
+                                    3'b100: data_out = load_sign ? {{48{temp_data[31]}}, temp_data[31:16]} : {48'b0, temp_data[31:16]};
+                                    // 3'b101: data_out = load_sign ? {{48{temp_data[23]}}, temp_data[23:8]} : {48'b0, temp_data[23:8]};
+                                    3'b110: data_out = load_sign ? {{48{temp_data[15]}}, temp_data[15:0]} : {48'b0, temp_data[15:0]};
+                                    default: data_out = 64'b0; // Default case, shouldn't happen
+                                endcase
+                            end
+
+                            3'b100: begin // 4 bytes
+                                case (within_block_offset)
+                                    3'b000: data_out = load_sign ? {{32{temp_data[63]}}, temp_data[63:32]} : {32'b0, temp_data[63:32]};
+                                    // 3'b001: data_out = load_sign ? {{32{temp_data[55]}}, temp_data[55:24]} : {32'b0, temp_data[55:24]};
+                                    // 3'b010: data_out = load_sign ? {{32{temp_data[47]}}, temp_data[47:16]} : {32'b0, temp_data[47:16]};
+                                    // 3'b011: data_out = load_sign ? {{32{temp_data[39]}}, temp_data[39:8]} : {32'b0, temp_data[39:8]};
+                                    3'b100: data_out = load_sign ? {{32{temp_data[31]}}, temp_data[31:0]} : {32'b0, temp_data[31:0]};
+                                    default: data_out = 64'b0; // Default case, shouldn't happen
+                                endcase
+                            end
+
+                            3'b111: begin // 8 bytes
+                                data_out = temp_data; // Entire block, no sign extension needed
+                            end
+
+                            default: begin
+                                data_out = 64'b0; // Default case, shouldn't happen
+                            end
+                        endcase
                     end
+                end
+
+
                     check_done = 1;
                 end
 
@@ -540,39 +569,62 @@ always_comb begin
                     tag = address[addr_width-1 -: tag_width];
                     block_offset = address[block_offset_width-1:3];
                     within_block_offset = address[2:0];
-                    case (data_size)
-                        3'b001: begin  // 1 byte
-                            write_mask = 64'hFF << (within_block_offset * 8);
-                            data_shifted = data_input[7:0] << (within_block_offset * 8);
-                            do_pending_write(address, data_input[7:0], 1);
-                        end
-                        3'b010: begin  // 2 bytes
-                            write_mask = 64'hFFFF << (within_block_offset * 8);
-                            data_shifted = data_input[15:0] << (within_block_offset * 8);
-                            do_pending_write(address, data_input[15:0], 2); 
-                        end
-                        3'b100: begin  // 4 bytes
-                            write_mask = 64'hFFFFFFFF << (within_block_offset * 8);
-                            data_shifted = data_input[31:0] << (within_block_offset * 8);
-                            do_pending_write(address, data_input[31:0], 4); 
-                        end
-                        3'b111: begin  // 8 bytes
-                            write_mask = 64'hFFFFFFFFFFFFFFFF; // Entire block
-                            data_shifted = data_input[63:0];   // No shifting needed
-                            do_pending_write(address, data_input[63:0], 8); 
-                        end
-                        default: write_mask = 64'h0;  // Default case
-                    endcase
 
+                    // Cache lookup and update (separate for each index)
                     for (int i = 0; i < ways; i++) begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
-                            cache_data[set_index][i][(block_offset) * 64 +: 64] = 
-                                (cache_data[set_index][i][(block_offset) * 64 +: 64] & ~write_mask) | 
-                                (data_shifted & write_mask);
                             dirty_bits[set_index][i] = 1;  // Mark block as dirty
+                            temp_cache_line = cache_data[set_index][i][(block_offset) * 64 +: 64];
+                            case (data_size)
+                                3'b001: begin  // 1 byte
+                                     case (within_block_offset)
+                                        3'b000: temp_cache_line[63:56] = data_input[7:0]; // Write to byte 7
+                                        3'b001: temp_cache_line[55:48] = data_input[7:0]; // Write to byte 6
+                                        3'b010: temp_cache_line[47:40] = data_input[7:0]; // Write to byte 5
+                                        3'b011: temp_cache_line[39:32] = data_input[7:0]; // Write to byte 4
+                                        3'b100: temp_cache_line[31:24] = data_input[7:0]; // Write to byte 3
+                                        3'b101: temp_cache_line[23:16] = data_input[7:0]; // Write to byte 2
+                                        3'b110: temp_cache_line[15:8] = data_input[7:0];  // Write to byte 1
+                                        3'b111: temp_cache_line[7:0] = data_input[7:0];   // Write to byte 0
+                                        default: ; // Default case, shouldn't happen
+                                    endcase
+                                    // dirty_bits[set_index][i] = 1; // Mark block as dirty
+                                end
+                                3'b010: begin  // 2 bytes
+                                    case (within_block_offset)
+                                        3'b000: temp_cache_line[63:48] = data_input[15:0]; // Write to bytes 7-6
+                                        // 3'b001: temp_cache_line[55:40] = data_input[15:0]; // Write to bytes 6-5
+                                        3'b010: temp_cache_line[47:32] = data_input[15:0]; // Write to bytes 5-4
+                                        // 3'b011: temp_cache_line[39:24] = data_input[15:0]; // Write to bytes 4-3
+                                        3'b100: temp_cache_line[31:16] = data_input[15:0]; // Write to bytes 3-2
+                                        // 3'b101: temp_cache_line[23:8] = data_input[15:0];  // Write to bytes 2-1
+                                        3'b110: temp_cache_line[15:0] = data_input[15:0];  // Write to bytes 1-0
+                                        default: ; // Default case, shouldn't happen
+                                    endcase
+                                    // dirty_bits[set_index][i] = 1; // Mark block as dirty
+                                end
+                                3'b100: begin  // 4 bytes
+                                    case (within_block_offset)
+                                        3'b000: temp_cache_line[63:32] = data_input[31:0]; // Write to bytes 0-3
+                                        // 3'b001: temp_cache_line[39:8] = data_input[31:0]; // Write to bytes 1-4
+                                        // 3'b010: temp_cache_line[47:16] = data_input[31:0]; // Write to bytes 2-5
+                                        // 3'b011: temp_cache_line[55:24] = data_input[31:0]; // Write to bytes 3-6
+                                        3'b100: temp_cache_line[31:0] = data_input[31:0]; // Write to bytes 4-7
+                                        default: ; // Default case, shouldn't happen
+                                    endcase
+                                    dirty_bits[set_index][i] = 1; // Mark block as dirty
+                                end
+                                3'b111: begin  // 8 bytes
+                                    temp_cache_line[63:0] = data_input[63:0]; // Write to entire block
+                                    dirty_bits[set_index][i] = 1; // Mark block as dirty
+                                end
+                                default: ; // Default case, shouldn't happen
+                            endcase
+                            cache_data[set_index][i][(block_offset) * 64 +: 64] = temp_cache_line;
                         end
                     end
+
                     check_done = 1;
                 end
 
@@ -650,26 +702,47 @@ always_comb begin
                 temp_data = cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64]; 
                 case (data_size)
                     3'b001: begin // 1 byte
-                        if (load_sign)
-                            data_out = {{56{temp_data[(within_block_offset * 8) + 7]}}, temp_data[(within_block_offset * 8) +: 8]};
-                        else
-                            data_out = {56'b0, temp_data[(within_block_offset * 8) +: 8]};
+                        case (within_block_offset)
+                            3'b000: data_out = load_sign ? {{56{temp_data[63]}}, temp_data[63:56]} : {56'b0, temp_data[63:56]};
+                            3'b001: data_out = load_sign ? {{56{temp_data[55]}}, temp_data[55:48]} : {56'b0, temp_data[55:48]};
+                            3'b010: data_out = load_sign ? {{56{temp_data[47]}}, temp_data[47:40]} : {56'b0, temp_data[47:40]};
+                            3'b011: data_out = load_sign ? {{56{temp_data[39]}}, temp_data[39:32]} : {56'b0, temp_data[39:32]};
+                            3'b100: data_out = load_sign ? {{56{temp_data[31]}}, temp_data[31:24]} : {56'b0, temp_data[31:24]};
+                            3'b101: data_out = load_sign ? {{56{temp_data[23]}}, temp_data[23:16]} : {56'b0, temp_data[23:16]};
+                            3'b110: data_out = load_sign ? {{56{temp_data[15]}}, temp_data[15:8]} : {56'b0, temp_data[15:8]};
+                            3'b111: data_out = load_sign ? {{56{temp_data[7]}}, temp_data[7:0]} : {56'b0, temp_data[7:0]};
+                            default: data_out = 64'b0; // Default case, shouldn't happen
+                        endcase
                     end
+
                     3'b010: begin // 2 bytes
-                        if (load_sign)
-                            data_out = {{48{temp_data[(within_block_offset * 8) + 15]}}, temp_data[(within_block_offset * 8) +: 16]};
-                        else
-                            data_out = {48'b0, temp_data[(within_block_offset * 8) +: 16]};
+                        case (within_block_offset)
+                            3'b000: data_out = load_sign ? {{48{temp_data[63]}}, temp_data[63:48]} : {48'b0, temp_data[63:48]};
+                            // 3'b001: data_out = load_sign ? {{48{temp_data[55]}}, temp_data[55:40]} : {48'b0, temp_data[55:40]};
+                            3'b010: data_out = load_sign ? {{48{temp_data[47]}}, temp_data[47:32]} : {48'b0, temp_data[47:32]};
+                            // 3'b011: data_out = load_sign ? {{48{temp_data[39]}}, temp_data[39:24]} : {48'b0, temp_data[39:24]};
+                            3'b100: data_out = load_sign ? {{48{temp_data[31]}}, temp_data[31:16]} : {48'b0, temp_data[31:16]};
+                            // 3'b101: data_out = load_sign ? {{48{temp_data[23]}}, temp_data[23:8]} : {48'b0, temp_data[23:8]};
+                            3'b110: data_out = load_sign ? {{48{temp_data[15]}}, temp_data[15:0]} : {48'b0, temp_data[15:0]};
+                            default: data_out = 64'b0; // Default case, shouldn't happen
+                        endcase
                     end
+
                     3'b100: begin // 4 bytes
-                        if (load_sign)
-                            data_out = {{32{temp_data[(within_block_offset * 8) + 31]}}, temp_data[(within_block_offset * 8) +: 32]};
-                        else
-                            data_out = {32'b0, temp_data[(within_block_offset * 8) +: 32]};
+                        case (within_block_offset)
+                            3'b000: data_out = load_sign ? {{32{temp_data[63]}}, temp_data[63:32]} : {32'b0, temp_data[63:32]};
+                            // 3'b001: data_out = load_sign ? {{32{temp_data[55]}}, temp_data[55:24]} : {32'b0, temp_data[55:24]};
+                            // 3'b010: data_out = load_sign ? {{32{temp_data[47]}}, temp_data[47:16]} : {32'b0, temp_data[47:16]};
+                            // 3'b011: data_out = load_sign ? {{32{temp_data[39]}}, temp_data[39:8]} : {32'b0, temp_data[39:8]};
+                            3'b100: data_out = load_sign ? {{32{temp_data[31]}}, temp_data[31:0]} : {32'b0, temp_data[31:0]};
+                            default: data_out = 64'b0; // Default case, shouldn't happen
+                        endcase
                     end
+
                     3'b111: begin // 8 bytes
-                        data_out = temp_data; // Entire block
+                        data_out = temp_data; // Entire block, no sign extension needed
                     end
+
                     default: begin
                         data_out = 64'b0; // Default case, shouldn't happen
                     end
@@ -684,9 +757,54 @@ always_comb begin
 
             WRITE_MISS: begin
                 data_cache_reading = 0;
-                cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64] = 
-                                (cache_data[set_index][i][(block_offset) * 64 +: 64] & ~write_mask) | 
-                                (data_shifted & write_mask);
+                temp_cache_line = cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64];
+                case (data_size)
+                    3'b001: begin  // 1 byte
+                            case (within_block_offset)
+                            3'b000: temp_cache_line[63:56] = data_input[7:0]; // Write to byte 7
+                            3'b001: temp_cache_line[55:48] = data_input[7:0]; // Write to byte 6
+                            3'b010: temp_cache_line[47:40] = data_input[7:0]; // Write to byte 5
+                            3'b011: temp_cache_line[39:32] = data_input[7:0]; // Write to byte 4
+                            3'b100: temp_cache_line[31:24] = data_input[7:0]; // Write to byte 3
+                            3'b101: temp_cache_line[23:16] = data_input[7:0]; // Write to byte 2
+                            3'b110: temp_cache_line[15:8] = data_input[7:0];  // Write to byte 1
+                            3'b111: temp_cache_line[7:0] = data_input[7:0];   // Write to byte 0
+                            default: ; // Default case, shouldn't happen
+                        endcase
+                        // dirty_bits[set_index][empty_way_next] = 1; // Mark block as dirty
+                    end
+                    3'b010: begin  // 2 bytes
+                        case (within_block_offset)
+                            3'b000: temp_cache_line[63:48] = data_input[15:0]; // Write to bytes 7-6
+                            // 3'b001: temp_cache_line[55:40] = data_input[15:0]; // Write to bytes 6-5
+                            3'b010: temp_cache_line[47:32] = data_input[15:0]; // Write to bytes 5-4
+                            // 3'b011: temp_cache_line[39:24] = data_input[15:0]; // Write to bytes 4-3
+                            3'b100: temp_cache_line[31:16] = data_input[15:0]; // Write to bytes 3-2
+                            // 3'b101: temp_cache_line[23:8] = data_input[15:0];  // Write to bytes 2-1
+                            3'b110: temp_cache_line[15:0] = data_input[15:0];  // Write to bytes 1-0
+                            default: ; // Default case, shouldn't happen
+                        endcase
+                        // dirty_bits[set_index][empty_way_next] = 1; // Mark block as dirty
+                    end
+                    3'b100: begin  // 4 bytes
+                        case (within_block_offset)
+                            3'b000: temp_cache_line[63:32] = data_input[31:0]; // Write to bytes 0-3
+                            // 3'b001: temp_cache_line[39:8] = data_input[31:0]; // Write to bytes 1-4
+                            // 3'b010: temp_cache_line[47:16] = data_input[31:0]; // Write to bytes 2-5
+                            // 3'b011: temp_cache_line[55:24] = data_input[31:0]; // Write to bytes 3-6
+                            3'b100: temp_cache_line[31:0] = data_input[31:0]; // Write to bytes 4-7
+                            default: ; // Default case, shouldn't happen
+                        endcase
+                        dirty_bits[set_index][empty_way_next] = 1; // Mark block as dirty
+                    end
+                    3'b111: begin  // 8 bytes
+                        temp_cache_line[63:0] = data_input[63:0]; // Write to entire block
+                        dirty_bits[set_index][empty_way_next] = 1; // Mark block as dirty
+                    end
+                    default: ; // Default case, shouldn't happen
+                endcase
+                cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64] = temp_cache_line;
+
                 send_enable_next = 1;
                 dirty_bits[set_index][empty_way_next] = 1;
                 if (!write_enable) begin
