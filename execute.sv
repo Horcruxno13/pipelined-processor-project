@@ -45,15 +45,8 @@ module InstructionExecutor (
         end else if (execute_enable) begin
             if(control_signals.opcode == 7'b1100011) begin                      // B-Type Branch (Conditional Jump)
                 if (alu_data_out == 1) begin  // branch conditions not met 
-                    // Extract the lower 12 bits of the immediate
-                    imm_12bit = control_signals.imm[11:0];
-
-                    // Sign-extend the 12-bit immediate to 64 bits
-                    
-                    signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
-
-                    // Perform the addi operation to compute the effective address
-                    pc_I_offset_out = control_signals.pc + $signed(signed_imm);
+                // sign extended in decoder
+                    pc_I_offset_out = control_signals.pc + control_signals.imm;
                     localJumpSignal = 1;
                 end else begin          // not met
                     pc_I_offset_out = 64'b0;

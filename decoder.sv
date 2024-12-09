@@ -196,7 +196,8 @@ logic[2:0] controlSignalsDataSize;
                             funct3 = instruction[14:12];
                             rs1 = instruction[19:15];
                             rs2 = instruction[24:20];
-                            imm = {52'b0, instruction[7], instruction[30:25], instruction[11:8], 1'b0};
+                            imm = {{51{instruction[31]}}, instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
+                            // imm = {52'b0, instruction[7], instruction[30:25], instruction[11:8], 1'b0}
                             // $display("B-type instruction detected");
                             // $display("RD: %h", rd);
                             // $display("Funct3: %h", funct3);
