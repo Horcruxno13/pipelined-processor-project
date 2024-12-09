@@ -178,6 +178,8 @@ register_file registerFile(
     logic fetch_reset_done;
     logic ecall_stall;
     logic ecall_detected;
+    logic [6:0] MD_opcode;
+    logic signed [63:0] MD_imm;
 
 
     // IF/ID Pipeline Register Logic (between Fetch and Decode stages)
@@ -220,19 +222,11 @@ register_file registerFile(
                     if_id_valid_reg <= 1; 
                     // destination_reg <= 0;
 
-                /*   
-                    MD_imm = {52'b0, __instruction[7], __instruction[30:25], __instruction[11:8], 1'b0};
-                    if (__opcode == 7'b1100011) begin //BRANCH Instruction True
-                    // Extract the lower 12 bits of the immediate
-                    logic [11:0] imm_12bit = id_ex_control_signal_struct.imm[11:0];
-                    // Sign-extend the 12-bit immediate to 64 bits
-                    logic signed [63:0] signed_imm;
-                    signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
-                    initial_pc <= id_ex_control_signal_struct.pc + $signed(signed_imm);
-                    end else begin
-                    end 
-                */
-                    if (!ecall_detected && !ex_mem_control_signal_struct_next.jump_signal) begin
+                    MD_opcode = if_id_instruction_reg_next[6:0];
+                    MD_imm = {{51{if_id_instruction_reg_next[31]}}, if_id_instruction_reg_next[31], if_id_instruction_reg_next[7], if_id_instruction_reg_next[30:25], if_id_instruction_reg_next[11:8], 1'b0};
+                    if (MD_opcode == 7'b1100011) begin //BRANCH Instruction True
+                        initial_pc <= initial_pc + MD_imm;
+                    end else if (!ecall_detected && !ex_mem_control_signal_struct_next.jump_signal) begin
                         initial_pc <= initial_pc + 4;
                     end 
                 end else if (fetcher_done && ecall_detected) begin
