@@ -597,7 +597,7 @@ register_file registerFile(
                     mem_wb_valid_reg <= 1;
                     /* memory_enable <= 0;
                     memory_disable <= 1; */
-                    if (!upstream_disable && !ecall_detected) begin
+                    if (!upstream_disable && (!ecall_detected || ex_mem_control_signal_struct.instruction != 8'd57)) begin
                         fetch_enable <= 1;
                         decode_enable <= 1;
                         execute_enable <= 1; 
