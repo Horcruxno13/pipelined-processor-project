@@ -344,12 +344,12 @@ always_comb begin
 				result = (rs1 >= rs2) ? 64'b1 : 64'b0;
 			end
 
-			8'd55: begin 
-				logic [11:0] imm_12bit = imm[11:0];
+			8'd55: begin //LUI
+				logic [19:0] imm_20bit = imm[19:0];
 
 				// Sign-extend the 12-bit immediate to 64 bits
 				logic signed [63:0] signed_imm;
-				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
+				signed_imm = {{44{imm_20bit[19]}}, imm_20bit};  // imm_12bit[11] is the sign bit
 
 				result = $signed(signed_imm) << 12;
 
