@@ -668,7 +668,7 @@ register_file registerFile(
                     currInstAtWB = writeback_control_signals_struct_input.instruction;
                     if (currInstAtWB == 8'd57) begin
                         if (!top_stall_core) begin
-                            $display("setting ecall to 0");
+                            // $display("setting ecall to 0");
                             ecall_detected <= 0;
                             fetch_enable <= 1;
                             writeback_enable_input <= 0;

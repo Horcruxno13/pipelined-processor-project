@@ -220,7 +220,10 @@ logic[2:0] controlSignalsDataSize;
                         // JAL (J-type)
                         7'b1101111: begin
                             rd = instruction[11:7];
-                            imm = {44'b0, instruction[19:12], instruction[20], instruction[30:21], 1'b0};
+                            imm = {{43{instruction[31]}}, instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
+                            if (pc_current == 32'h2FD18) begin
+                                // $display("JAL immediate: %h", imm);
+                            end
                             instruction_type = 8'd53; // JAL (new value)
                         end
 
@@ -395,9 +398,9 @@ logic[2:0] controlSignalsDataSize;
                     control_signals_out.pc = pc_current;
                 
                     if (instruction_type == 8'b11111111) begin
-                        $display(pc_current);
-                        $display(instruction);
-                        $display("CANNOT DETECT TYPE");
+                        // $display(pc_current);
+                        // $display(instruction);
+                        // $display("CANNOT DETECT TYPE");
                     end
                 decode_complete = 1;
             end

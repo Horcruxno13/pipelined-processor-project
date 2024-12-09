@@ -2,7 +2,7 @@ module decache #(
     parameter cache_line_size = 512,           // Size of each cache line in bytes
     parameter cache_lines = 4,                 // Total number of cache lines
     parameter sets = 64,                        // Number of sets in the cache
-    parameter ways = 8,                        // Number of ways (associativity) in the cache
+    parameter ways = 4,                        // Number of ways (associativity) in the cache
     parameter addr_width = 64,                 // Width of the address bus
     parameter data_width = 64                  // Width of the data bus 
 )(

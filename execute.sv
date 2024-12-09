@@ -53,10 +53,8 @@ module InstructionExecutor (
                     localJumpSignal = 0;
                 end
             end else if(control_signals.opcode == 7'b1101111) begin            // JAL J-Type Jump (Unconditional Jump)
-
-                imm_20bit = control_signals.imm[19:0];
-                signed_imm = {{44{imm_20bit[19]}}, imm_20bit}; 
-                pc_I_offset_out = pc_current + $signed(signed_imm);
+                // signed in decode
+                pc_I_offset_out = pc_current + control_signals.imm;
                 localJumpSignal = 1;
 
             end else if (control_signals.opcode == 7'b1100111) begin           // I-Type JALR (Unconditional Jump with rs1)
