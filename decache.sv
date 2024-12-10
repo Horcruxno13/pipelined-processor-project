@@ -227,7 +227,7 @@ always_ff @(posedge clock) begin
             MEMORY_ACCESS: begin
                 if (m_axi_rvalid && m_axi_rready) begin
                     buffer_array[burst_counter] <= m_axi_rdata;
-                    $display("AXIRead Data %h at %d", m_axi_rdata, buffer_pointer);
+                    // $display("AXIRead Data %h at %d", m_axi_rdata, buffer_pointer);
                     buffer_pointer <= buffer_pointer + 2;
                     burst_counter <= burst_counter + 1;
                 end
@@ -280,7 +280,7 @@ always_ff @(posedge clock) begin
                     else if (cleaning_ecall_now) begin
                         m_axi_wdata <= cache_data[set_index][clean_way][(burst_counter * 64) +: 64];
                     end 
-                    $display("AXI WData %h at %d", m_axi_wdata, burst_counter);
+                    // $display("AXI WData %h at %d", m_axi_wdata, burst_counter);
                     m_axi_wstrb <= 8'hFF;
                     
                     burst_counter <= burst_counter + 1;
@@ -325,7 +325,7 @@ always_ff @(posedge clock) begin
                 if (m_axi_acvalid && m_axi_acsnoop == 4'b1101 && !m_axi_acready) begin
                     m_axi_acready <= 1;
                     ac_address <= m_axi_acaddr;
-                    $display("ACSNOOP ", ac_address);
+                    // $display("ACSNOOP ", ac_address);
                 end
 
                 if (m_axi_acready) begin
@@ -505,10 +505,10 @@ always_comb begin
                         if (tags[set_index][i] == tag && valid_bits[set_index][i] == 1) begin  // Check for tag match
                             cache_hit = 1;   // Cache hit
                             temp_data = cache_data[set_index][i][(block_offset) * 64 +: 64];
-                            $display("Cache Hit");
-                            $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address %h", tag, set_index, block_offset, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
-                            $display("Cache line is %h.", cache_data[set_index][i]);
-                            $display("Temp data is %h.", temp_data);
+                            // $display("Cache Hit");
+                            // $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address %h", tag, set_index, block_offset, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
+                            // $display("Cache line is %h.", cache_data[set_index][i]);
+                            // $display("Temp data is %h.", temp_data);
                             case (data_size)
                                 3'b001: begin // 1 byte
                                     if (load_sign)
@@ -587,10 +587,10 @@ always_comb begin
                                 (cache_data[set_index][i][(block_offset) * 64 +: 64] & ~write_mask) | 
                                 (data_shifted & write_mask);
                             dirty_bits[set_index][i] = 1;  // Mark block as dirty
-                            $display("Cache Write Hit");
-                            $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address %h", tag, set_index, block_offset, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
-                            $display("Cache line is %h.", cache_data[set_index][i]);
-                            $display("Input data is %h.", data_input);
+                            // $display("Cache Write Hit");
+                            // $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address %h", tag, set_index, block_offset, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
+                            // $display("Cache line is %h.", cache_data[set_index][i]);
+                            // $display("Input data is %h.", data_input);
                         end
                     end
                     check_done = 1;
@@ -628,7 +628,7 @@ always_comb begin
                 m_axi_arburst = 2;
                 m_axi_araddr = modified_address;
                 data_cache_reading = 1;
-                $display("Modified Read Address %h", modified_address);
+                // $display("Modified Read Address %h", modified_address);
             end
 
             MEMORY_WAIT: begin
@@ -669,10 +669,10 @@ always_comb begin
             SEND_DATA: begin
                 data_cache_reading = 0;
                 temp_data = cache_data[set_index][empty_way_next][(block_offset) * 64 +: 64]; 
-                $display("Cache Miss");
-                $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address", tag, set_index, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
-                $display("Cache line is %h.", cache_data[set_index][empty_way_next]);
-                $display("Temp data is %h.", temp_data);
+                // $display("Cache Miss");
+                // $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address", tag, set_index, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
+                // $display("Cache line is %h.", cache_data[set_index][empty_way_next]);
+                // $display("Temp data is %h.", temp_data);
                 case (data_size)
                     3'b001: begin // 1 byte
                         if (load_sign)
@@ -714,10 +714,10 @@ always_comb begin
                                 (data_shifted & write_mask);
                 send_enable_next = 1;
                 dirty_bits[set_index][empty_way_next] = 1;
-                $display("Cache Write Miss");
-                $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address %h", tag, set_index, block_offset, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
-                $display("Cache line is %h.", cache_data[set_index][empty_way_next]);
-                $display("Data Input is %h", data_input);
+                // $display("Cache Write Miss");
+                // $display("Cache line at %h tag and %h set index with %h block offset. Makes address %h. Start address %h", tag, set_index, block_offset, {tag, set_index, block_offset}, {tag, set_index, {block_offset_width{1'b0}}});
+                // $display("Cache line is %h.", cache_data[set_index][empty_way_next]);
+                // $display("Data Input is %h", data_input);
                 if (!write_enable) begin
                     send_enable_next = 0;
                     check_done = 0;
@@ -732,13 +732,13 @@ always_comb begin
                 if (cleaning_ecall_now) begin
                     modified_address = {tags[set_index][clean_way], set_index, {block_offset_width{1'b0}}};
                     dirty_bits[set_index][clean_way] = 0;
-                    $display("Modified Write Address E Call %h", modified_address);
-                    $display("Cache data being written %h", cache_data[set_index][clean_way]);
+                    // $display("Modified Write Address E Call %h", modified_address);
+                    // $display("Cache data being written %h", cache_data[set_index][clean_way]);
                 end else begin
                     modified_address = {tags[set_index][way_to_replace], set_index, {block_offset_width{1'b0}}};
                     dirty_bits[set_index][way_to_replace] = 0;
-                    $display("Modified Write Address Normal Replace %h", modified_address);
-                    $display("Cache data being written %h", cache_data[set_index][way_to_replace]);
+                    // $display("Modified Write Address Normal Replace %h", modified_address);
+                    // $display("Cache data being written %h", cache_data[set_index][way_to_replace]);
                 end 
                 m_axi_awvalid = 1;
                 m_axi_awlen = 7;

@@ -106,7 +106,7 @@ always_comb begin
                 ) begin
                 // if (cache_request_address == 64'hFFFFFFFC100E6580) begin
                 // if (cache_request_address[63:36] == 28'hFFFFFFF) begin
-                //     $display("in fetch", cache_request_address);
+                //     // $display("in fetch", cache_request_address);
                 // end
                 cache_request_address = select_target ? target_address : pc_current;
                 recache_request_ready = 1;

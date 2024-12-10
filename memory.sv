@@ -145,7 +145,7 @@ decache data_cache (
                 end 
                 else if (decache_result_ready) begin
                     if (control_signals.write_memory_access == 1) begin
-                        $display("MemWrite: PC: %h ---- Writing %h (%d) to %h", control_signals.pc, reg_b_contents, reg_b_contents , decache_request_address);
+                        // $display("MemWrite: PC: %h ---- Writing %h (%d) to %h", control_signals.pc, reg_b_contents, reg_b_contents , decache_request_address);
                     end
                     read_enable = 0;
                     write_enable = 0;
@@ -173,7 +173,7 @@ decache data_cache (
                 if (control_signals.read_memory_access || control_signals.write_memory_access) begin
                     
                     // if (decache_request_address[63:36] == 28'hFFFFFFF) begin
-                    //     $display("in mem", decache_request_address);
+                    //     // $display("in mem", decache_request_address);
                     // end
                     decache_request_address = alu_data;
                     decache_request_ready = 1;
@@ -184,7 +184,7 @@ decache data_cache (
 
                     if (decache_result_ready) begin // CLK 2
                         if (control_signals.read_memory_access == 1) begin
-                            $display("MemRead: PC: %h ---- Reading %h (%d) from %h into x%d", control_signals.pc, loaded_data_out, loaded_data_out , decache_request_address, control_signals.dest_reg);
+                            // $display("MemRead: PC: %h ---- Reading %h (%d) from %h into x%d", control_signals.pc, loaded_data_out, loaded_data_out , decache_request_address, control_signals.dest_reg);
                         end
                         decache_request_ready = 0;
                         memory_done = 1;
