@@ -239,7 +239,7 @@ logic[2:0] controlSignalsDataSize;
                         // LUI (U-type)
                         7'b0110111: begin
                             rd = instruction[11:7];
-                            imm = {44'b0,instruction[31:12]};
+                            imm = {{32{instruction[31]}}, instruction[31:12], 12'b0};
                             instruction_type = 8'd55; // LUI (new value)
                         end
 
@@ -402,6 +402,12 @@ logic[2:0] controlSignalsDataSize;
                         // $display(instruction);
                         // $display("CANNOT DETECT TYPE");
                     end
+                // if (pc_current == 64'h0000000000018810) begin
+                //     $display("IN DECODER");
+                //     $display("rs1 ", rs1);
+                //     $display("rs2 ", rs2);
+                //     $display("imm ", imm);
+                // end
                 decode_complete = 1;
             end
         end else begin //may need to drop these to let stale values be

@@ -458,6 +458,12 @@ register_file registerFile(
                     ex_mem_alu_data <= ex_mem_alu_data_next;
                     ex_mem_reg_b_data <= id_ex_reg_b_data;
                     ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
+                    // if (ex_mem_alu_data_next == 64'hfffffffc100e65b8) begin
+                    //     $display("PC for ", ex_mem_alu_data_next, " is at ", ex_mem_control_signal_struct_next.pc);
+                    //     $display("Instr: ", ex_mem_control_signal_struct_next.instruction);
+                    //     $display("RegB: ", id_ex_reg_b_data);
+                    //     $display("dest reg: ", ex_mem_control_signal_struct_next.dest_reg);
+                    // end
                     if (ex_mem_control_signal_struct_next.jump_signal) begin
                         upstream_disable <= 1;
                         initial_pc <= ex_mem_pc_plus_I_offset_reg_next;
