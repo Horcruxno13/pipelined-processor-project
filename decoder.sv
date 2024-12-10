@@ -66,13 +66,13 @@ logic[2:0] controlSignalsDataSize;
                             rs1 = instruction[19:15];
                             rs2 = instruction[24:20];
                             funct7 = instruction[31:25];
-                            // $display("R-type instruction detected");
-                            // $display("RD: %h", rd);
-                            // $display("Funct3: %h", funct3);
-                            // $display("RS1: %h", rs1);
-                            // $display("RS2: %h", rs2);
-                            // $display("Funct7: %h", funct7);
-                            // $display("IMM: %d", imm);
+                            // // $display("R-type instruction detected");
+                            // // $display("RD: %h", rd);
+                            // // $display("Funct3: %h", funct3);
+                            // // $display("RS1: %h", rs1);
+                            // // $display("RS2: %h", rs2);
+                            // // $display("Funct7: %h", funct7);
+                            // // $display("IMM: %d", imm);
 
 
                             case(funct3)
@@ -126,13 +126,13 @@ logic[2:0] controlSignalsDataSize;
                             funct3 = instruction[14:12];
                             rs1 = instruction[19:15];
                             imm = {52'b0, instruction[31:20]};
-                            // $display("I-type instruction detected");
-                            // $display("RD: %d", rd);
-                            // $display("Funct3: %b", funct3);
-                            // $display("RS1: %d", rs1);
-                            // $display("RS2: %d", rs2);
-                            // $display("Funct7: %b", funct7);
-                            // $display("IMM: %d", imm);
+                            // // $display("I-type instruction detected");
+                            // // $display("RD: %d", rd);
+                            // // $display("Funct3: %b", funct3);
+                            // // $display("RS1: %d", rs1);
+                            // // $display("RS2: %d", rs2);
+                            // // $display("Funct7: %b", funct7);
+                            // // $display("IMM: %d", imm);
 
                             case(funct3)
                                 3'b000: instruction_type = 8'd18; // ADDI
@@ -161,13 +161,13 @@ logic[2:0] controlSignalsDataSize;
                             rs1 = instruction[19:15];
                             rs2 = instruction[24:20];
                             imm = {52'b0, instruction[31:25], instruction[11:7]};
-                            // $display("S-type instruction detected");
-                            // $display("RD: %h", rd);
-                            // $display("Funct3: %h", funct3);
-                            // $display("RS1: %h", rs1);
-                            // $display("RS2: %h", rs2);
-                            // $display("Funct7: %h", funct7);
-                            // $display("IMM: %d", imm);
+                            // // $display("S-type instruction detected");
+                            // // $display("RD: %h", rd);
+                            // // $display("Funct3: %h", funct3);
+                            // // $display("RS1: %h", rs1);
+                            // // $display("RS2: %h", rs2);
+                            // // $display("Funct7: %h", funct7);
+                            // // $display("IMM: %d", imm);
 
                             case(funct3)
                                 3'b000:begin
@@ -198,13 +198,13 @@ logic[2:0] controlSignalsDataSize;
                             rs2 = instruction[24:20];
                             imm = {{51{instruction[31]}}, instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0};
                             // imm = {52'b0, instruction[7], instruction[30:25], instruction[11:8], 1'b0}
-                            // $display("B-type instruction detected");
-                            // $display("RD: %h", rd);
-                            // $display("Funct3: %h", funct3);
-                            // $display("RS1: %h", rs1);
-                            // $display("RS2: %h", rs2);
-                            // $display("Funct7: %h", funct7);
-                            // $display("IMM: %d", imm);
+                            // // $display("B-type instruction detected");
+                            // // $display("RD: %h", rd);
+                            // // $display("Funct3: %h", funct3);
+                            // // $display("RS1: %h", rs1);
+                            // // $display("RS2: %h", rs2);
+                            // // $display("Funct7: %h", funct7);
+                            // // $display("IMM: %d", imm);
 
                             case(funct3)
                                 3'b000: instruction_type = 8'd47;   // BEQ (new value)
@@ -222,7 +222,7 @@ logic[2:0] controlSignalsDataSize;
                             rd = instruction[11:7];
                             imm = {{43{instruction[31]}}, instruction[31], instruction[19:12], instruction[20], instruction[30:21], 1'b0};
                             if (pc_current == 32'h2FD18) begin
-                                // $display("JAL immediate: %h", imm);
+                                // // $display("JAL immediate: %h", imm);
                             end
                             instruction_type = 8'd53; // JAL (new value)
                         end
@@ -239,7 +239,7 @@ logic[2:0] controlSignalsDataSize;
                         // LUI (U-type)
                         7'b0110111: begin
                             rd = instruction[11:7];
-                            imm = {44'b0,instruction[31:12]};
+                            imm = {{32{instruction[31]}}, instruction[31:12], 12'b0};
                             instruction_type = 8'd55; // LUI (new value)
                         end
 
@@ -317,13 +317,13 @@ logic[2:0] controlSignalsDataSize;
                             rs1 = instruction[19:15];
                             rs2 = instruction[24:20];
                             funct7 = instruction[31:25];
-                            // $display("W-type instruction detected");
-                            // $display("RD: %d", rd);
-                            // $display("Funct3: %b", funct3);
-                            // $display("RS1: %d", rs1);
-                            // $display("RS2: %d", rs2);
-                            // $display("Funct7: %b", funct7);
-                            // $display("IMM: %d", imm);
+                            // // $display("W-type instruction detected");
+                            // // $display("RD: %d", rd);
+                            // // $display("Funct3: %b", funct3);
+                            // // $display("RS1: %d", rs1);
+                            // // $display("RS2: %d", rs2);
+                            // // $display("Funct7: %b", funct7);
+                            // // $display("IMM: %d", imm);
                             case(funct3)
                                 3'b000: begin
                                     if (funct7 == 7'b0000000) instruction_type = 8'd33; // ADDW
@@ -349,13 +349,13 @@ logic[2:0] controlSignalsDataSize;
                             rs1 = instruction[19:15];
                             imm = {52'b0, instruction[31:20]};
                             
-                            // $display("IW-type instruction detected");
-                            // $display("RD: %h", rd);
-                            // $display("Funct3: %h", funct3);
-                            // $display("RS1: %h", rs1);
-                            // $display("RS2: %h", rs2);
-                            // $display("Funct7: %h", funct7);
-                            // $display("IMM: %d", imm);
+                            // // $display("IW-type instruction detected");
+                            // // $display("RD: %h", rd);
+                            // // $display("Funct3: %h", funct3);
+                            // // $display("RS1: %h", rs1);
+                            // // $display("RS2: %h", rs2);
+                            // // $display("Funct7: %h", funct7);
+                            // // $display("IMM: %d", imm);
                             
                             case(funct3)
                                 3'b000: instruction_type = 8'd29; // ADDIW
@@ -398,10 +398,16 @@ logic[2:0] controlSignalsDataSize;
                     control_signals_out.pc = pc_current;
                 
                     if (instruction_type == 8'b11111111) begin
-                        // $display(pc_current);
-                        // $display(instruction);
-                        // $display("CANNOT DETECT TYPE");
+                        // // $display(pc_current);
+                        // // $display(instruction);
+                        // // $display("CANNOT DETECT TYPE");
                     end
+                // if (pc_current == 64'h0000000000018810) begin
+                //     // $display("IN DECODER");
+                //     // $display("rs1 ", rs1);
+                //     // $display("rs2 ", rs2);
+                //     // $display("imm ", imm);
+                // end
                 decode_complete = 1;
             end
         end else begin //may need to drop these to let stale values be

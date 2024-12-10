@@ -214,7 +214,7 @@ always_comb begin
 				// Sign-extend the 12-bit immediate to 64 bits
 				signed_imm = {{52{imm_12bit[11]}}, imm_12bit};  // imm_12bit[11] is the sign bit
 
-				result = (rs1 < $signed(signed_imm)) ? 1 : 0;
+				result = ($unsigned(rs1) < $unsigned(signed_imm)) ? 1 : 0;
 			end
 
 		// RV32M
@@ -345,13 +345,14 @@ always_comb begin
 			end
 
 			8'd55: begin //LUI
-				logic [19:0] imm_20bit = imm[19:0];
+				// logic [19:0] imm_20bit = imm[19:0];
 
-				// Sign-extend the 12-bit immediate to 64 bits
-				logic signed [63:0] signed_imm;
-				signed_imm = {{44{imm_20bit[19]}}, imm_20bit};  // imm_12bit[11] is the sign bit
+				// // Sign-extend the 12-bit immediate to 64 bits
+				// logic signed [63:0] signed_imm;
+				// signed_imm = {{44{imm_20bit[19]}}, imm_20bit};  // imm_12bit[11] is the sign bit
 
-				result = $signed(signed_imm) << 12;
+				// result = $signed(signed_imm) << 12;
+				result = imm;
 
 			end 
 
@@ -381,6 +382,11 @@ always_comb begin
         	end
 
 		endcase
+		// if (pc_alu == 64'h0000000000018810) begin
+		// 	// $display("IN ALU");
+		// 	// $display("rs1 ", rs1);
+		// 	// $display("imm ", signed_imm);
+		// end
 	// end
 	end
 endmodule

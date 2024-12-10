@@ -146,6 +146,13 @@ register_file registerFile(
     output logic m_axi_rready,                // Ready to accept data from AXI
    */
 
+   always_ff @(posedge clk) begin
+    // $display("At %h: %b %b %b %b %b", initial_pc, fetcher_done, decode_done, execute_done, memory_done, write_back_done);
+    if (initial_pc == 64'h0000000000000014) begin
+        $finish();
+    end
+   end
+
     //InstructionFetcher instantiation
     InstructionFetcher instructionFetcher (
         .clk(clk),
@@ -458,6 +465,12 @@ register_file registerFile(
                     ex_mem_alu_data <= ex_mem_alu_data_next;
                     ex_mem_reg_b_data <= id_ex_reg_b_data;
                     ex_mem_control_signal_struct <= ex_mem_control_signal_struct_next;
+                    // if (ex_mem_alu_data_next == 64'hfffffffc100e65b8) begin
+                    //     // $display("PC for ", ex_mem_alu_data_next, " is at ", ex_mem_control_signal_struct_next.pc);
+                    //     // $display("Instr: ", ex_mem_control_signal_struct_next.instruction);
+                    //     // $display("RegB: ", id_ex_reg_b_data);
+                    //     // $display("dest reg: ", ex_mem_control_signal_struct_next.dest_reg);
+                    // end
                     if (ex_mem_control_signal_struct_next.jump_signal) begin
                         upstream_disable <= 1;
                         initial_pc <= ex_mem_pc_plus_I_offset_reg_next;
@@ -668,7 +681,7 @@ register_file registerFile(
                     currInstAtWB = writeback_control_signals_struct_input.instruction;
                     if (currInstAtWB == 8'd57) begin
                         if (!top_stall_core) begin
-                            // $display("setting ecall to 0");
+                            // // $display("setting ecall to 0");
                             ecall_detected <= 0;
                             fetch_enable <= 1;
                             writeback_enable_input <= 0;

@@ -125,6 +125,12 @@ module InstructionWriteBack
                             register_write_enable = 0;
                         end
                     end   
+                    if (register_write_enable == 1) begin
+                        // $display("Regfile: PC: %h ---- Writing %h (%d) to x%d", control_signals.pc, register_write_data, register_write_data, register_write_addr);
+                    end
+                    // if (register_write_data == 64'hfffffffc100e65b0) begin
+                    //     // $display("PC value in WB: ", control_signals.pc, " while data: ", register_write_data, " and instr: ", control_signals.instruction);
+                    // end
                 end
             end else begin
                 register_write_enable = 0;
