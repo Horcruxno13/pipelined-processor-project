@@ -33,7 +33,7 @@
 
   > make submit
 
-  The project on the fully pipelined 5 stage CPU with set-associative cache was done by:
+  The project on the fully pipelined 5 stage CPU with set-associative cache with a branch predictor (always not taken) was done by:
   Jayesh Rathi          116729060
   Deboparna Banerjee    116559045
   Angad Singh           116490195
